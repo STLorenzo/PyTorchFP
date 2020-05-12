@@ -1,0 +1,8 @@
+data organized in rows:
+	features(1..n) - target(Discrete or Continuous)
+Is all data numerical?
+Is the data shuffled?
+Is data split in train - test?
+Is the data scaled (normalized)
+Is the data balanced? (same amount for each class)
+
