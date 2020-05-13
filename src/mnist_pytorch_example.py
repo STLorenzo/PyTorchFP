@@ -28,8 +28,7 @@ testset = torch.utils.data.DataLoader(test, batch_size=10, shuffle=True)
 # Is data balanced
 
 total = 0
-counter_dict = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
-
+counter_dict = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}
 
 for data in trainset:
     Xs, ys = data
@@ -40,4 +39,4 @@ for data in trainset:
 print(counter_dict)
 
 for i in counter_dict:
-    print(f"{i}: {counter_dict[i]/total*100.0}%")
+    print(f"{i}: {counter_dict[i] / total * 100.0}%")
