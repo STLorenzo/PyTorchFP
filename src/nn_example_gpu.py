@@ -84,7 +84,7 @@ end_event.record()
 torch.cuda.synchronize()  # Wait for the events to be recorded!
 elapsed_time_ms = start_event.elapsed_time(end_event)
 
-print(f"Train time: {elapsed_time_ms}")
+print(f"Train time: {elapsed_time_ms/ 1000.0} seconds")
 
 correct = 0
 total = 0
@@ -101,7 +101,7 @@ with torch.no_grad():
             total += 1
 
 acc_time = time.time() - acc_time
-print(f"Accuraccy calculation time: {acc_time/ 1000.0} seconds")
+print(f"Accuraccy calculation time: {acc_time} seconds")
 
 print("Accuracy: ", round(correct/total, 3))
 Xcpu = X.cpu()
