@@ -55,11 +55,22 @@ optimizer = optim.Adam(net.parameters(), lr=0.001)
 
 EPOCHS = 3
 
-train_time = time.time()
+# Now lets try in GPU
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+net.to(device)
+
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
+start_event.record()
+
+# Run some things here
+
 for epoch in range(EPOCHS):
     for data in trainset:
         # data is a batch of featuresets and labels
-        X, y = data
+        X, y = data[0].to(device), data[1].to(device)
         net.zero_grad()
         output = net(X.view(-1, 28 * 28))
         loss = F.nll_loss(output, y)
@@ -69,8 +80,11 @@ for epoch in range(EPOCHS):
         optimizer.step()
     print(loss)
 
-train_time = time.time() - train_time
-print(f"Train time: {train_time}")
+end_event.record()
+torch.cuda.synchronize()  # Wait for the events to be recorded!
+elapsed_time_ms = start_event.elapsed_time(end_event)
+
+print(f"Train time: {elapsed_time_ms}")
 
 correct = 0
 total = 0
@@ -78,7 +92,8 @@ total = 0
 acc_time = time.time()
 with torch.no_grad():
     for data in trainset:
-        X, y = data
+        X, y = data[0].to(device), data[1].to(device)
+
         output = net(X.view(-1, 28 * 28))
         for idx, i in enumerate(output):
             if torch.argmax(i) == y[idx]:
@@ -86,11 +101,14 @@ with torch.no_grad():
             total += 1
 
 acc_time = time.time() - acc_time
-print(f"Accuraccy calculation time: {acc_time}")
+print(f"Accuraccy calculation time: {acc_time/ 1000.0} seconds")
 
 print("Accuracy: ", round(correct/total, 3))
-plt.imshow(X[0].view(28, 28))
+Xcpu = X.cpu()
+plt.imshow(Xcpu[0].view(28, 28))
 plt.show()
 
 print(torch.argmax(net(X[0].view(-1, 28 * 28))[0]))
+
+
 
