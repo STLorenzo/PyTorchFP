@@ -5,7 +5,7 @@ from skimage.transform import resize  # Scikit image library: Resizes an image
 import numpy as np  # Vector - Matrix Library
 from tqdm import tqdm  # Progress bar library
 from pathlib import Path  # Path manipulation
-import matplotlib.pyplot as plt  # Graph making Library
+import time  # Time measuring library
 
 # Torch Libraries
 import torch
@@ -172,61 +172,39 @@ def fwd_pass(X, y, net, loss_function, optimizer, train=False):
     return acc, loss
 
 
-def test(test_X, test_y, size=32):
-    X, y = test_X[:size], test_y[:size]
+def train(device, train_X, train_y, net, img_h, img_w, batch_size, epochs,
+          log_file, loss_function, optimizer, model_name, n_steps_log=50):
+    with open(log_file, "a") as f:
+        for epoch in range(epochs):
+            for i in tqdm(range(0, len(train_X), batch_size)):
+                batch_X = train_X[i:i + batch_size].view(-1, 1, img_h, img_w).to(device)
+                batch_y = train_y[i:i + batch_size].to(device)
+
+                acc, loss = fwd_pass(batch_X, batch_y, net, loss_function, optimizer, train=True)
+                if i % n_steps_log == 0:
+                    val_acc, val_loss = test(device, batch_X, batch_y, net,
+                                             img_h, img_w, loss_function, optimizer)
+                    f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
+                            f"{round(float(acc), 2)},{round(float(loss), 4)},"
+                            f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
 
-def train_gpu(device, train_X, train_y, net, batch_size, epochs, optimizer, loss_function, img_h, img_w):
-    for epoch in range(epochs):
-        for i in tqdm(range(0, len(train_X), batch_size)):
-            # print(i, i+BATCH_SIZE)
-            batch_X = train_X[i:i + batch_size].view(-1, 1, img_h, img_w).to(device)
-            batch_y = train_y[i:i + batch_size].to(device)
-
-            net.zero_grad()  # zero the gradient buffers
-            outputs = net(batch_X)
-            loss = loss_function(outputs, batch_y)
-            loss.backward()
-            optimizer.step()  # Does the update
-
-        print(f"Epoch: {epoch}. Loss: {loss}")
-
-
-def test_gpu(device, test_X, test_y, net, img_h, img_w):
-    correct = 0
-    total = 0
+def test(device, test_X, test_y, net, img_h, img_w, loss_function, optimizer, size=32):
+    random_start = np.random.randint(len(test_X) - size)
+    X, y = test_X[random_start:random_start + size], test_y[random_start:random_start + size]
     with torch.no_grad():
-        for i in tqdm(range(len(test_X))):
-            real_class = torch.argmax(test_y[i])
-            net_out = net(test_X[i].view(-1, 1, img_h, img_w).to(device))[0]
-            predicted_class = torch.argmax(net_out)
-            if predicted_class == real_class:
-                correct += 1
-            total += 1
-    print("Accuracy:", round(correct / total, 3))
-
-
-def test_gpu_batch(device, test_X, test_y, net, img_h, img_w, batch_size):
-    correct = 0
-    total = 0
-    for i in tqdm(range(0, len(test_X), batch_size)):
-        batch_X = test_X[i:i + batch_size].view(-1, 1, img_h, img_w).to(device)
-        batch_y = test_y[i:i + batch_size].to(device)
-        batch_out = net(batch_X)
-
-        out_maxes = [torch.argmax(i) for i in batch_out]
-        target_maxes = [torch.argmax(i) for i in batch_y]
-        for i, j in zip(out_maxes, target_maxes):
-            if i == j:
-                correct += 1
-            total += 1
-    print("Accuracy:", round(correct / total, 3))
+        val_acc, val_loss = fwd_pass(X.view(-1, 1, img_h, img_w).to(device), y.to(device),
+                                     net, loss_function, optimizer)
+    return val_acc, val_loss
 
 
 LR = 0.001
 VAL_PCT = 0.1
 BATCH_SIZE = 100
-EPOCHS = 4
+EPOCHS = 30
+
+MODEL_NAME = f"model-{int(time.time())}"
+LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
 
 # Execution
 dogvscats = DogsVSCats()
@@ -243,9 +221,6 @@ net.to(device)
 
 train_X, test_X, train_y, test_y = prepare_Xy(dogvscats.TRAINING_DATA_PATH, VAL_PCT,
                                               dogvscats.IMG_SIZE, dogvscats.IMG_SIZE)
-train_gpu(device, train_X, train_y, net, BATCH_SIZE, EPOCHS,
-          optimizer, loss_function, dogvscats.IMG_SIZE, dogvscats.IMG_SIZE)
 
-test_gpu(device, test_X, test_y, net, dogvscats.IMG_SIZE, dogvscats.IMG_SIZE)
-
-test_gpu_batch(device, test_X, test_y, net, dogvscats.IMG_SIZE, dogvscats.IMG_SIZE, BATCH_SIZE)
+train(device, train_X, train_y, net, dogvscats.IMG_SIZE, dogvscats.IMG_SIZE,
+      BATCH_SIZE, EPOCHS, LOG_FILE, loss_function, optimizer, MODEL_NAME, n_steps_log=50)
