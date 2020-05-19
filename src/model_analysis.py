@@ -158,6 +158,24 @@ def prepare_Xy(path, val_pct, img_h, img_w):
     return train_X, test_X, train_y, test_y
 
 
+def fwd_pass(X, y, net, loss_function, optimizer, train=False):
+    if train:
+        net.zero_grad()
+    outputs = net(X)
+    matches = [torch.argmax(i) == torch.argmax(j) for i, j in zip(outputs, y)]
+    acc = matches.count(True) / len(matches)
+    loss = loss_function(outputs, y)
+
+    if train:
+        loss.backward()
+        optimizer.step()
+    return acc, loss
+
+
+def test(test_X, test_y, size=32):
+    X, y = test_X[:size], test_y[:size]
+
+
 def train_gpu(device, train_X, train_y, net, batch_size, epochs, optimizer, loss_function, img_h, img_w):
     for epoch in range(epochs):
         for i in tqdm(range(0, len(train_X), batch_size)):
