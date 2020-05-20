@@ -351,14 +351,14 @@ class ImgConvNet(nn.Module):
 
     def optimize(self, loss_functions=None, optimizers=None, batch_sizes=None, lrs=None, epochs=None):
         if lrs is None:
-            lrs = [1e-3, 3e-3, 5e-3, 1e-2, 1e-4]
+            lrs = [1e-3, 5e-3, 1e-2, 1e-4]
         if batch_sizes is None:
-            batch_sizes = [8, 16, 32, 128, 256]
+            batch_sizes = [8, 16, 32, 128]
         if epochs is None:
-            epochs = [10, 20, 30]
+            epochs = [10, 30, 50]
 
         if loss_functions is None:
-            loss_functions = [nn.MSELoss(), nn.CrossEntropyLoss(), nn.BCELoss()]
+            loss_functions = [nn.MSELoss()]
 
         if optimizers is None:
             optimizers = []
@@ -376,11 +376,11 @@ class ImgConvNet(nn.Module):
                         loss_name = self.get_loss_function_name(loss_function)
                         self.train_p(batch_size=batch_size, epochs=epoch,
                                      loss_function=loss_function, optimizer=optimizer,
-                                     model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}", verbose=True)
-                        if i == 2:
-                            return
-                        else:
-                            i += 1
+                                     model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}",
+                                     log_file="../doc/optimizer.log", verbose=True)
+                        i += 1
+
+        print(f"Trained: {i} Different models")
 
         # print(f"LRS: {lrs}")
         # print(f"BATCH_SIZES: {batch_sizes}")
