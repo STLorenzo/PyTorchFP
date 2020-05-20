@@ -6,6 +6,7 @@ import numpy as np  # Vector - Matrix Library
 from tqdm import tqdm  # Progress bar library
 from pathlib import Path  # Path manipulation
 import time  # Time measuring library
+import datetime
 
 # Torch Libraries
 import torch
@@ -16,56 +17,114 @@ import torch.optim as optim
 REBUILD_DATA = False
 
 
-class DogsVSCats():
-    DATA_BASE_DIR = Path("../data")
-    IMG_SIZE = 50
-    CATS = DATA_BASE_DIR / "cats_dogs/PetImages/Cat"
-    DOGS = DATA_BASE_DIR / "cats_dogs/PetImages/Dog"
-    TRAINING_DATA_PATH = DATA_BASE_DIR / "training_data.npy"
-    LABELS = {CATS: 0, DOGS: 1}
-    training_data = []
-    cat_count = 0
-    dog_count = 0
+# Creates a directory if it doesn't already exist
+def create_dir(dir_name, debug=False):
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
+        if debug:
+            print("Directory ", dir_name, " Created ")
+    else:
+        if debug:
+            print("Directory ", dir_name, " already exists")
+
+
+class ImageLoader():
+
+    def __init__(self, data_base_dir, img_dir, img_size=(50, 50)):
+        # TODO: Check inputs
+        self.data_base_dir = Path(data_base_dir)
+        self.img_dir = Path(img_dir)
+        self.img_size = img_size
+        self.img_h = img_size[0]
+        self.img_w = img_size[1]
+        self.classes = os.listdir(self.img_dir)
+        self.labels = {label: i for label, i in zip(self.classes, range(len(self.classes)))}
+        self.created_data_path = self.data_base_dir / "created_data"
+        create_dir(self.created_data_path)
+        self.training_data_path = self.created_data_path / "training_data.npy"
+        self.training_data = []
+        self.counts = {label: 0 for label in self.classes}
 
     def make_training_data(self):
-        for label in self.LABELS:
+        self.training_data = []
+        self.counts = {label: 0 for label in self.classes}
+        for label in self.labels:
             print(label)
-            error = 0
-            for file in tqdm(os.listdir(label)):
+            errors = 0
+            for file in tqdm(os.listdir(self.img_dir / label)):
                 try:
-                    path = label / file
+                    path = self.img_dir / label / file
                     # img = imread(path, as_gray=True)
                     # img = resize(img, (self.IMG_SIZE, self.IMG_SIZE))
                     # NOTE: cv2 does not work properly with Path library paths
                     img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-                    img = cv2.resize(img, (self.IMG_SIZE, self.IMG_SIZE))
+                    img = cv2.resize(img, (self.img_size[0], self.img_size[1]))
                     # np.eye(N) returns the identity matrix NxN and can be used to get One-hot vectors
-                    one_hot = np.eye(len(self.LABELS))[self.LABELS[label]]
+                    one_hot = np.eye(len(self.labels))[self.labels[label]]
                     self.training_data.append([np.array(img), one_hot])
-
-                    if label == self.CATS:
-                        self.cat_count += 1
-                    elif label == self.DOGS:
-                        self.dog_count += 1
+                    self.counts[label] += 1
                 except Exception as e:
-                    error += 1
-                    print(e)
-            print("ERRORS: ", error)
+                    errors += 1
+            print("Files not loaded due to errors: ", errors)
         np.random.shuffle(self.training_data)
-        np.save(self.TRAINING_DATA_PATH, self.training_data)
-        print("Cats: ", self.cat_count)
-        print("Dogs: ", self.dog_count)
+        np.save(self.training_data_path, self.training_data)
+        print("Amount of data for each class:")
+        for k, v in self.counts.items():
+            print(f"{k}: {v}")
+        self.prepare_Xy()
+
+    def prepare_Xy(self, val_pct=0.1, img_norm_value=255.0):
+        print("Creating train_X, train_y, test_X, test_y...")
+        training_data = np.load(self.training_data_path, allow_pickle=True)
+        X = [i[0] for i in training_data]
+        X = torch.Tensor(X).view(-1, self.img_size[0], self.img_size[1])
+        X = X / img_norm_value
+        y = [i[1] for i in training_data]
+        y = torch.Tensor(y)
+
+        val_size = int(len(X) * val_pct)
+
+        train_X = X[:-val_size]
+        train_y = y[:-val_size]
+        test_X = X[-val_size:]
+        test_y = y[-val_size:]
+
+        torch.save(train_X, self.created_data_path / "train_X.pt")
+        torch.save(train_y, self.created_data_path / "train_y.pt")
+        torch.save(test_X, self.created_data_path / "test_X.pt")
+        torch.save(test_y, self.created_data_path / "test_y.pt")
+        print("Data saved")
+
+        return train_X, test_X, train_y, test_y
+
+    def read_train_X(self):
+        return torch.load(self.created_data_path / "train_X.pt")
+
+    def read_train_y(self):
+        return torch.load(self.created_data_path / "train_y.pt")
+
+    def read_test_X(self):
+        return torch.load(self.created_data_path / "test_X.pt")
+
+    def read_test_y(self):
+        return torch.load(self.created_data_path / "test_y.pt")
+
+    def read_Xy(self):
+        print("Loading train_X, train_y, test_X, test_y...")
+        train_X = self.read_train_X()
+        train_y = self.read_train_y()
+        test_X = self.read_train_X()
+        test_y = self.read_train_y()
+        print("Load successful")
+
+        return train_X, test_X, train_y, test_y
 
 
-class Net(nn.Module):
-    def __init__(self, img_h=50, img_w=None):
+class ImgConvNet(nn.Module):
+    def __init__(self, img_loader, device=torch.device('cpu'), optimizer=None, loss_function=None, lr=1e-3):
         super().__init__()
-        self.img_h = img_h
-
-        if img_w is None:
-            self.img_w = img_h
-        else:
-            self.img_w = img_w
+        self.img_loader = img_loader
+        self.lr = lr
 
         # Conv2d(in_channels = 1, out_channels=32, kernel(window) = 5)
         # By default stride = 1, padding = 0
@@ -82,6 +141,19 @@ class Net(nn.Module):
 
         self.fc1 = nn.Linear(self._flatten_dim, 512)
         self.fc2 = nn.Linear(512, 2)
+
+        # NET COMPILE
+        self.device = device
+        self.to(device)
+        if optimizer is None:
+            self.optimizer = optim.Adam(self.parameters(), self.lr)
+        else:
+            self.optimizer = optimizer
+        if loss_function is None:
+            self.loss_function = nn.MSELoss()
+        else:
+            self.loss_function = loss_function
+        print(f"Net will run in {self.device}")
 
     def convs(self, x, verbose=False):
         # It scales down the data
@@ -120,9 +192,10 @@ class Net(nn.Module):
         return x
 
     def calculate_flatten_dim(self):
-        x = torch.rand(self.img_h, self.img_w).view(-1, 1, self.img_h, self.img_w)
+        x = torch.rand(self.img_loader.img_size[0], self.img_loader.img_size[1]).view(-1, 1,
+                                                                                      self.img_loader.img_size[0],
+                                                                                      self.img_loader.img_size[1])
         x = self.convs(x, False)
-        # print(x[0].shape)
         dim = 1
         for n in x[0].shape:
             dim *= n
@@ -135,92 +208,120 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.softmax(x, dim=1)  # Activation Function
 
+    def check_optim_loss(self, loss_function, optimizer):
+        if (optimizer is None and self.optimizer is None) or (loss_function is None and self.loss_function is None):
+            raise Exception("Net not compiled")
 
-# print(training_data[1][1])
-# plt.imshow(training_data[1][0], cmap="gray")
-# plt.show()
+        if optimizer is None:
+            optimizer = self.optimizer
+        if loss_function is None:
+            loss_function = self.loss_function
 
-def prepare_Xy(path, val_pct, img_h, img_w):
-    training_data = np.load(path, allow_pickle=True)
-    X = [i[0] for i in training_data]
-    X = torch.Tensor(X).view(-1, img_h, img_w)
-    X = X / 255.0
-    y = [i[1] for i in training_data]
-    y = torch.Tensor(y)
+        return loss_function, optimizer
 
-    val_size = int(len(X) * val_pct)
+    def fwd_pass(self, X, y, loss_function=None, optimizer=None, train=False):
+        loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
-    train_X = X[:-val_size]
-    train_y = y[:-val_size]
-    test_X = X[-val_size:]
-    test_y = y[-val_size:]
+        if train:
+            self.zero_grad()
+        outputs = self(X)  # Because inherits Net we call the class itself
+        matches = [torch.argmax(i) == torch.argmax(j) for i, j in zip(outputs, y)]
+        acc = matches.count(True) / len(matches)
+        loss = loss_function(outputs, y)
 
-    return train_X, test_X, train_y, test_y
+        if train:
+            loss.backward()
+            optimizer.step()
+        return acc, loss
 
+    def train_p(self, train_X=None, train_y=None, batch_size=100, epochs=10, log_file=None, loss_function=None,
+                optimizer=None, model_name=f"model-{time.time()}", n_steps_log=50, verbose=False):
 
-def fwd_pass(X, y, net, loss_function, optimizer, train=False):
-    if train:
-        net.zero_grad()
-    outputs = net(X)
-    matches = [torch.argmax(i) == torch.argmax(j) for i, j in zip(outputs, y)]
-    acc = matches.count(True) / len(matches)
-    loss = loss_function(outputs, y)
+        if train_X is None:
+            train_X = img_loader.read_train_X()
+        if train_y is None:
+            train_y = img_loader.read_train_y()
 
-    if train:
-        loss.backward()
-        optimizer.step()
-    return acc, loss
+        if log_file is None:
+            create_dir("../doc")
+            log_file = Path(f"../doc/{datetime.datetime.now()}.log")
 
+        loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
-def train(device, train_X, train_y, net, img_h, img_w, batch_size, epochs,
-          log_file, loss_function, optimizer, model_name, n_steps_log=50):
-    with open(log_file, "a") as f:
-        for epoch in range(epochs):
-            for i in tqdm(range(0, len(train_X), batch_size)):
-                batch_X = train_X[i:i + batch_size].view(-1, 1, img_h, img_w).to(device)
-                batch_y = train_y[i:i + batch_size].to(device)
+        if verbose:
+            print("Starting Training")
+        t0 = time.time()
+        with open(log_file, "a") as f:
+            for epoch in range(epochs):
+                if verbose:
+                    print(f"Epoch: {epoch}")
+                for i in tqdm(range(0, len(train_X), batch_size)):
+                    batch_X = train_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
+                                                             self.img_loader.img_size[1]).to(self.device)
+                    batch_y = train_y[i:i + batch_size].to(self.device)
 
-                acc, loss = fwd_pass(batch_X, batch_y, net, loss_function, optimizer, train=True)
-                if i % n_steps_log == 0:
-                    val_acc, val_loss = test(device, batch_X, batch_y, net,
-                                             img_h, img_w, loss_function, optimizer)
-                    f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
-                            f"{round(float(acc), 2)},{round(float(loss), 4)},"
-                            f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
+                    acc, loss = self.fwd_pass(batch_X, batch_y, loss_function, optimizer, train=True)
+                    if i % n_steps_log == 0:
+                        val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
+                        f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
+                                f"{round(float(acc), 2)},{round(float(loss), 4)},"
+                                f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
+        t1 = time.time() - t0
+        if verbose:
+            print(f"Training Finished in {t1} seconds")
 
-def test(device, test_X, test_y, net, img_h, img_w, loss_function, optimizer, size=32):
-    random_start = np.random.randint(len(test_X) - size)
-    X, y = test_X[random_start:random_start + size], test_y[random_start:random_start + size]
-    with torch.no_grad():
-        val_acc, val_loss = fwd_pass(X.view(-1, 1, img_h, img_w).to(device), y.to(device),
-                                     net, loss_function, optimizer)
-    return val_acc, val_loss
+    def test_p(self, test_X=None, test_y=None, loss_function=None, optimizer=None, size=None, verbose=False):
+        if test_X is None:
+            test_X = img_loader.read_test_X()
+        if test_y is None:
+            test_y = img_loader.read_test_y()
+        loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
+
+        if size is None or size >= len(test_X):
+            X = test_X
+            y = test_y
+        else:
+            random_start = np.random.randint(len(test_X) - size)
+            X, y = test_X[random_start:random_start + size], test_y[random_start:random_start + size]
+
+        if verbose:
+            print("Starting Testing")
+        t0 = time.time()
+        with torch.no_grad():
+            val_acc, val_loss = self.fwd_pass(
+                X.view(-1, 1, self.img_loader.img_size[0], self.img_loader.img_size[1]).to(self.device),
+                y.to(self.device), loss_function, optimizer)
+        t1 = time.time() - t0
+        if verbose:
+            print(f"Testing Finished in {t1} seconds")
+        return val_acc, val_loss
 
 
 LR = 0.001
-VAL_PCT = 0.1
-BATCH_SIZE = 100
+VAL_PCT = 0.2
+BATCH_SIZE = 300000
 EPOCHS = 30
 
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
 
+DATA_BASE_DIR = Path("../data")
+IMG_DIR = DATA_BASE_DIR / "cats_dogs/PetImages"
+IMG_SIZE = (50, 50)
+
 # Execution
-dogvscats = DogsVSCats()
+img_loader = ImageLoader(DATA_BASE_DIR, IMG_DIR, IMG_SIZE)
 if REBUILD_DATA:
-    dogvscats.make_training_data()
+    img_loader.make_training_data()
 
-net = Net(dogvscats.IMG_SIZE)
-optimizer = optim.Adam(net.parameters(), LR)
-loss_function = nn.MSELoss()
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-net.to(device)
+net = ImgConvNet(img_loader, DEVICE)
+OPTIMIZER = optim.Adam(net.parameters(), LR)
+LOSS_FUNCTION = nn.MSELoss()
 
-train_X, test_X, train_y, test_y = prepare_Xy(dogvscats.TRAINING_DATA_PATH, VAL_PCT,
-                                              dogvscats.IMG_SIZE, dogvscats.IMG_SIZE)
-
-train(device, train_X, train_y, net, dogvscats.IMG_SIZE, dogvscats.IMG_SIZE,
-      BATCH_SIZE, EPOCHS, LOG_FILE, loss_function, optimizer, MODEL_NAME, n_steps_log=50)
+net.train_p(verbose=True, batch_size=BATCH_SIZE, optimizer=OPTIMIZER)
+val_acc, val_loss = net.test_p(verbose=True)
+print("Accuracy: ", val_acc)
+print("Loss: ", val_loss)

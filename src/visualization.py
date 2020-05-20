@@ -4,7 +4,7 @@ from pathlib import Path  # Path manipulation
 
 style.use("ggplot")
 
-model_name = "model-1589887984"
+model_name = "2020-05-20 12:19:44.264745"
 
 
 def create_acc_loss_graph(model_name):
@@ -20,9 +20,8 @@ def create_acc_loss_graph(model_name):
     val_losses = []
 
     for c in contents:
-        if model_name in c:
+        try:
             name, epoch, timestamp, acc, loss, val_acc, val_loss = c.split(",")
-
             times.append(float(timestamp))
             epochs.append(float(epoch))
             accuracies.append(float(acc))
@@ -30,6 +29,8 @@ def create_acc_loss_graph(model_name):
 
             val_accs.append(float(val_acc))
             val_losses.append(float(val_loss))
+        except Exception as e:
+            pass
 
     fig = plt.figure()
 
