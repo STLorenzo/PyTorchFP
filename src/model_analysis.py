@@ -254,14 +254,22 @@ class ImgConvNet(nn.Module):
         if train_y is None:
             train_y = img_loader.read_train_y()
 
+        # TODO: CHECK TESTING
+        # test_X = img_loader.read_test_X()
+        # test_y = img_loader.read_test_y()
+
         if log_file is None:
             create_dir("../doc")
             log_file = Path(f"../doc/{datetime.datetime.now()}.log")
 
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
+        optimizer_name, lr = self.get_optimizer_data(optimizer)
+        loss_function_name = self.get_loss_function_name(loss_function)
+
         if verbose:
-            print("Starting Training")
+            print(f"Starting Training of {model_name},{epochs},"
+                  f"{loss_function_name},{optimizer_name},{lr},{batch_size}")
         t0 = time.time()
         with open(log_file, "a") as f:
             for epoch in range(epochs):
@@ -276,6 +284,7 @@ class ImgConvNet(nn.Module):
                     if i % n_steps_log == 0:
                         val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
                         f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
+                                f"{loss_function_name},{optimizer_name},{lr},{batch_size},"
                                 f"{round(float(acc), 2)},{round(float(loss), 4)},"
                                 f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
@@ -331,6 +340,55 @@ class ImgConvNet(nn.Module):
     def load_net(self, path):
         self.load_state_dict(torch.load(path))
 
+    def get_optimizer_data(self, optimizer):
+        s = str(optimizer)
+        name = s.rsplit(' (')[0]
+        lr = s.rsplit('lr: ', 1)[1].rsplit('\n')[0]
+        return name, lr
+
+    def get_loss_function_name(self, loss_function):
+        return str(loss_function)[:-2]
+
+    def optimize(self, loss_functions=None, optimizers=None, batch_sizes=None, lrs=None, epochs=None):
+        if lrs is None:
+            lrs = [1e-3, 3e-3, 5e-3, 1e-2, 1e-4]
+        if batch_sizes is None:
+            batch_sizes = [8, 16, 32, 128, 256]
+        if epochs is None:
+            epochs = [10, 20, 30]
+
+        if loss_functions is None:
+            loss_functions = [nn.MSELoss(), nn.CrossEntropyLoss(), nn.BCELoss()]
+
+        if optimizers is None:
+            optimizers = []
+            optimizers_constructors = [optim.Adam, optim.Adagrad, optim.SGD]
+            for lr in lrs:
+                for constructor in optimizers_constructors:
+                    optimizers.append(constructor(net.parameters(), lr))
+
+        i = 0
+        for epoch in epochs:
+            for batch_size in batch_sizes:
+                for loss_function in loss_functions:
+                    for optimizer in optimizers:
+                        optim_name, lr = self.get_optimizer_data(optimizer)
+                        loss_name = self.get_loss_function_name(loss_function)
+                        self.train_p(batch_size=batch_size, epochs=epoch,
+                                     loss_function=loss_function, optimizer=optimizer,
+                                     model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}", verbose=True)
+                        if i == 2:
+                            return
+                        else:
+                            i += 1
+
+        # print(f"LRS: {lrs}")
+        # print(f"BATCH_SIZES: {batch_sizes}")
+        # print(f"EPOCHS: {epochs}")
+        # print(f"LOSS_FUNCTIONS: {loss_functions}")
+        # print(f"LOSS_FUNCTIONS: {self.get_loss_function_name(loss_functions[0])}")
+        print(f"OPTIMIZERS: {optimizers}")
+
 
 # DATA PREPROCESSING
 VAL_PCT = 0.2
@@ -358,19 +416,19 @@ MODEL_PATH = img_loader.created_data_path / "net_1.pl"
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 net = ImgConvNet(img_loader, DEVICE)
-OPTIMIZER = optim.Adam(net.parameters(), LR)
-LOSS_FUNCTION = nn.MSELoss()
+net.optimize()
 
-net.train_p(verbose=True, batch_size=BATCH_SIZE, epochs=EPOCHS)
-val_acc, val_loss = net.test_p(verbose=True)
-print("Accuracy: ", val_acc)
-print("Loss: ", val_loss)
+# net.train_p(verbose=True, batch_size=BATCH_SIZE, epochs=EPOCHS)
+# val_acc, val_loss = net.test_p(verbose=True)
+# print("Accuracy: ", val_acc)
+# print("Loss: ", val_loss)
 
-net.make_predictions()
-#
-#
+# -------- PREDICTIONS ---------------
+# net.make_predictions()
+
+# -------- SAVE/LOAD ------------------
+
 # net.save_net(MODEL_PATH)
-
 # net2 = ImgConvNet(img_loader, DEVICE)
 # net2.load_net(MODEL_PATH)
 # net2.make_predictions()
