@@ -14,8 +14,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-REBUILD_DATA = False
-
 
 # Creates a directory if it doesn't already exist
 def create_dir(dir_name, debug=False):
@@ -30,7 +28,7 @@ def create_dir(dir_name, debug=False):
 
 class ImageLoader():
 
-    def __init__(self, data_base_dir, img_dir, img_size=(50, 50)):
+    def __init__(self, data_base_dir, img_dir, predict_dir, img_size=(50, 50), img_norm_value=255.0):
         # TODO: Check inputs
         self.data_base_dir = Path(data_base_dir)
         self.img_dir = Path(img_dir)
@@ -44,8 +42,23 @@ class ImageLoader():
         self.training_data_path = self.created_data_path / "training_data.npy"
         self.training_data = []
         self.counts = {label: 0 for label in self.classes}
+        self.img_norm_value = img_norm_value
+        self.predict_dir = predict_dir
 
-    def make_training_data(self):
+    def read_image(self, path):
+        img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        return cv2.resize(img, (self.img_size[0], self.img_size[1]))
+
+    def show_image(self, path, output="None"):
+        img = cv2.imread(str(path))
+        cv2.imshow(output, img)
+        cv2.waitKey(0)
+        cv2.destroyWindow(output)  # cv2 has problem Ubuntu
+
+    def normalize_img(self, img):
+        return img / self.img_norm_value
+
+    def make_training_data(self, val_pct=0.1):
         self.training_data = []
         self.counts = {label: 0 for label in self.classes}
         for label in self.labels:
@@ -57,8 +70,7 @@ class ImageLoader():
                     # img = imread(path, as_gray=True)
                     # img = resize(img, (self.IMG_SIZE, self.IMG_SIZE))
                     # NOTE: cv2 does not work properly with Path library paths
-                    img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-                    img = cv2.resize(img, (self.img_size[0], self.img_size[1]))
+                    img = self.read_image(path)
                     # np.eye(N) returns the identity matrix NxN and can be used to get One-hot vectors
                     one_hot = np.eye(len(self.labels))[self.labels[label]]
                     self.training_data.append([np.array(img), one_hot])
@@ -71,14 +83,14 @@ class ImageLoader():
         print("Amount of data for each class:")
         for k, v in self.counts.items():
             print(f"{k}: {v}")
-        self.prepare_Xy()
+        self.prepare_Xy(val_pct)
 
-    def prepare_Xy(self, val_pct=0.1, img_norm_value=255.0):
+    def prepare_Xy(self, val_pct=0.1):
         print("Creating train_X, train_y, test_X, test_y...")
         training_data = np.load(self.training_data_path, allow_pickle=True)
         X = [i[0] for i in training_data]
         X = torch.Tensor(X).view(-1, self.img_size[0], self.img_size[1])
-        X = X / img_norm_value
+        X = self.normalize_img(X)
         y = [i[1] for i in training_data]
         y = torch.Tensor(y)
 
@@ -297,31 +309,68 @@ class ImgConvNet(nn.Module):
             print(f"Testing Finished in {t1} seconds")
         return val_acc, val_loss
 
+    def make_predictions(self):
+        predict_data_path = self.img_loader.predict_dir
+        for file in os.listdir(predict_data_path):
+            # try:
+            img = self.img_loader.read_image(predict_data_path / file)
+            img = torch.Tensor(img).view(-1, 1, self.img_loader.img_size[0], self.img_loader.img_size[1]).to(
+                self.device)
+            img = self.img_loader.normalize_img(img)
+            output = torch.argmax(self(img))
+            output = self.img_loader.classes[output]
+            self.img_loader.show_image(predict_data_path / file, output)
 
-LR = 0.001
+            # except Exception as e:
+            #     print(e)
+            # print(f"{file} could not be loaded")
+
+    def save_net(self, path):
+        torch.save(self.state_dict(), path)
+
+    def load_net(self, path):
+        self.load_state_dict(torch.load(path))
+
+
+# DATA PREPROCESSING
 VAL_PCT = 0.2
-BATCH_SIZE = 300000
-EPOCHS = 30
-
+IMG_SIZE = (50, 50)
+# TRAINING PARAMETERS
+LR = 0.001
+BATCH_SIZE = 32
+EPOCHS = 20
+# DOC NAMES
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
-
+# PATHS
 DATA_BASE_DIR = Path("../data")
 IMG_DIR = DATA_BASE_DIR / "cats_dogs/PetImages"
-IMG_SIZE = (50, 50)
+PREDICT_DIR = DATA_BASE_DIR / "predictions"
 
-# Execution
-img_loader = ImageLoader(DATA_BASE_DIR, IMG_DIR, IMG_SIZE)
+# -------------------------------------Execution------------------------------------
+REBUILD_DATA = False
+
+img_loader = ImageLoader(DATA_BASE_DIR, IMG_DIR, PREDICT_DIR, IMG_SIZE)
 if REBUILD_DATA:
-    img_loader.make_training_data()
+    img_loader.make_training_data(val_pct=VAL_PCT)
 
+MODEL_PATH = img_loader.created_data_path / "net_1.pl"
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 net = ImgConvNet(img_loader, DEVICE)
 OPTIMIZER = optim.Adam(net.parameters(), LR)
 LOSS_FUNCTION = nn.MSELoss()
 
-net.train_p(verbose=True, batch_size=BATCH_SIZE, optimizer=OPTIMIZER)
+net.train_p(verbose=True, batch_size=BATCH_SIZE, epochs=EPOCHS)
 val_acc, val_loss = net.test_p(verbose=True)
 print("Accuracy: ", val_acc)
 print("Loss: ", val_loss)
+
+net.make_predictions()
+#
+#
+# net.save_net(MODEL_PATH)
+
+# net2 = ImgConvNet(img_loader, DEVICE)
+# net2.load_net(MODEL_PATH)
+# net2.make_predictions()

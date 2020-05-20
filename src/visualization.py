@@ -4,7 +4,7 @@ from pathlib import Path  # Path manipulation
 
 style.use("ggplot")
 
-model_name = "2020-05-20 12:19:44.264745"
+model_name = "2020-05-20 13:04:05.354545"
 
 
 def create_acc_loss_graph(model_name):
