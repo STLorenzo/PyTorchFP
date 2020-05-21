@@ -34,13 +34,13 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net = ICN.ImgConvNet(img_loader, DEVICE)
 # net.optimize()
 
-net.train_p(verbose=True, batch_size=BATCH_SIZE, epochs=EPOCHS)
-val_acc, val_loss = net.test_p(verbose=True)
-print("Accuracy: ", val_acc)
-print("Loss: ", val_loss)
+# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
+# val_acc, val_loss = net.test_p(verbose=True)
+# print("Accuracy: ", val_acc)
+# print("Loss: ", val_loss)
 
 # -------- PREDICTIONS ---------------
-net.make_predictions()
+# net.make_predictions()
 
 # -------- SAVE/LOAD ------------------
 
@@ -48,3 +48,6 @@ net.make_predictions()
 # net2 = ImgConvNet(img_loader, DEVICE)
 # net2.load_net(MODEL_PATH)
 # net2.make_predictions()
+
+# -------------- RESUME TRAINING --------------
+net.resume_training(DATA_BASE_DIR / "created_data/__half__model-1590075563.4901638.pt")

@@ -5,6 +5,7 @@ from pathlib import Path  # Path manipulation
 import time  # Time measuring library
 import datetime
 import sys
+import signal
 # Torch Libraries
 import torch
 import torch.nn as nn
@@ -27,6 +28,9 @@ class ImgConvNet(nn.Module):
         self.lr = lr
         self.STOP_TRAIN = False
         self.half_trained_model_path = Path("../data/created_data")
+        self.loss_dict = {'MSELoss': nn.MSELoss}
+
+        signal.signal(signal.SIGINT, self.catch_sigint)
 
         # Conv2d(in_channels = 1, out_channels=32, kernel(window) = 5)
         # By default stride = 1, padding = 0
@@ -136,7 +140,7 @@ class ImgConvNet(nn.Module):
             optimizer.step()
         return acc, loss
 
-    def train_p(self, train_X=None, train_y=None, batch_size=100, epochs=10, log_file=None, loss_function=None,
+    def train_p(self, train_X=None, train_y=None, batch_size=100, epoch=0, max_epochs=10, log_file=None, loss_function=None,
                 optimizer=None, model_name=f"model-{time.time()}", n_steps_log=50, verbose=False):
 
         if train_X is None:
@@ -160,16 +164,23 @@ class ImgConvNet(nn.Module):
         self.STOP_TRAIN = False
 
         if verbose:
-            print(f"Starting Training of {model_name},{epochs},"
+            print(f"Starting Training of {model_name},{max_epochs},"
                   f"{loss_function_name},{optimizer_name},{lr},{batch_size}")
         t0 = time.time()
         with open(log_file, "a") as f:
-            for epoch in range(epochs):
+            for epoch in range(epoch, max_epochs):
                 # TODO: check stop train
                 if self.STOP_TRAIN:
-                    self.save_net(self.half_trained_model_path / f"__half__{model_name}.pt")
+                    if verbose:
+                        print("Stopping Training")
+                    self.print_instance(epoch, max_epochs, batch_size, optimizer, loss_function)
+                    self.save_instance_net(self.half_trained_model_path / f"__half__{model_name}.pt",
+                                           epoch, max_epochs, batch_size, optimizer, loss_function,
+                                           log_file, model_name)
+
+                    sys.exit(0)
                 if verbose:
-                    print(f"Epoch: {epoch}")
+                    print(f"Epoch: {epoch}/{max_epochs}")
                 for i in tqdm(range(0, len(train_X), batch_size)):
                     batch_X = train_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
                                                              self.img_loader.img_size[1]).to(self.device)
@@ -186,6 +197,11 @@ class ImgConvNet(nn.Module):
         t1 = time.time() - t0
         if verbose:
             print(f"Training Finished in {t1} seconds")
+
+    def resume_training(self, path):
+        epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)
+        self.train_p(epoch=epoch, max_epochs=max_epoch, batch_size=batch_size, loss_function=loss_function,
+                     optimizer=self.optimizer, log_file=model_name, model_name=model_name, verbose=True)
 
     def test_p(self, test_X=None, test_y=None, loss_function=None, optimizer=None, size=None, verbose=False):
         if test_X is None:
@@ -229,15 +245,26 @@ class ImgConvNet(nn.Module):
             #     print(e)
             # print(f"{file} could not be loaded")
 
+    def print_instance(self, epoch, max_epoch, batch_size, optimizer, loss_function):
+        print(f"MODEL: {self.state_dict()}\n"
+              f"OPTIMIZER: {optimizer.state_dict()}\n"
+              f"Epoch: {epoch}\n"
+              f"Max Epoch: {max_epoch}\n"
+              f"Batch_size: {batch_size}\n"
+              f"Loss: {self.get_loss_function_name(loss_function)}\n")
+
     # TODO: CHECK SAVE LOAD (in particular loss function)
-    def save_instance_net(self, path, epoch, max_epoch, batch_size, optimizer, loss_function):
+    def save_instance_net(self, path, epoch, max_epoch, batch_size, optimizer, loss_function,
+                          log_file, model_name):
         torch.save({
             'epoch': epoch,
             'max_epoch': max_epoch,
             'batch_size': batch_size,
             'model_state_dict': self.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss_function
+            'loss': self.get_loss_function_name(loss_function),
+            'log_file': log_file,
+            'model_name': model_name,
         }, path)
 
     def load_instance_net(self, path):
@@ -246,14 +273,20 @@ class ImgConvNet(nn.Module):
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
         max_epoch = checkpoint['max_epoch']
-        loss_function = checkpoint['loss']
+        loss_function = self.get_loss_function_by_name(checkpoint['loss'])
         batch_size = checkpoint['batch_size']
+        log_file = checkpoint['log_file']
+        model_name = checkpoint['model_name']
+        return epoch, max_epoch, loss_function, batch_size, log_file, model_name
 
     def save_net(self, path):
         torch.save(self.state_dict(), path)
 
     def load_net(self, path):
         self.load_state_dict(torch.load(path))
+
+    def catch_sigint(self, signum, frame):
+        self.STOP_TRAIN = True
 
     @staticmethod
     def get_optimizer_data(optimizer):
@@ -265,6 +298,13 @@ class ImgConvNet(nn.Module):
     @staticmethod
     def get_loss_function_name(loss_function):
         return str(loss_function)[:-2]
+
+    def get_loss_function_by_name(self, loss):
+        if loss in self.loss_dict.keys():
+            return self.loss_dict[loss]()
+        else:
+            raise Exception(f"Loss name not doesn't match available functions\n"
+                            f"{loss} - {self.loss_dict}")
 
     def optimize(self, loss_functions=None, optimizers=None, batch_sizes=None, lrs=None, epochs=None):
         if lrs is None:
