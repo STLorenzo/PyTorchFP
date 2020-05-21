@@ -154,7 +154,7 @@ class ImgConvNet(nn.Module):
 
         if log_file is None:
             create_dir("../doc")
-            log_file = Path(f"../doc/{datetime.datetime.now()}.log")
+            log_file = os.path.join(f"../doc/{datetime.datetime.now().strftime('%Y-%m-%d_%H_%M')}.log")
 
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
@@ -232,18 +232,18 @@ class ImgConvNet(nn.Module):
     def make_predictions(self):
         predict_data_path = self.img_loader.predict_dir
         for file in os.listdir(predict_data_path):
-            # try:
-            img = self.img_loader.read_image(predict_data_path / file)
-            img = torch.Tensor(img).view(-1, 1, self.img_loader.img_size[0], self.img_loader.img_size[1]).to(
-                self.device)
-            img = self.img_loader.normalize_img(img)
-            output = torch.argmax(self(img))
-            output = self.img_loader.classes[output]
-            self.img_loader.show_image(predict_data_path / file, output)
+            try:
+                img = self.img_loader.read_image(predict_data_path / file)
+                img = torch.Tensor(img).view(-1, 1, self.img_loader.img_size[0], self.img_loader.img_size[1]).to(
+                    self.device)
+                img = self.img_loader.normalize_img(img)
+                output = torch.argmax(self(img))
+                output = self.img_loader.classes[output]
+                self.img_loader.show_image(predict_data_path / file, output)
 
-            # except Exception as e:
-            #     print(e)
-            # print(f"{file} could not be loaded")
+            except Exception as e:
+                print(e)
+            print(f"{file} could not be loaded")
 
     def print_instance(self, epoch, max_epoch, batch_size, optimizer, loss_function):
         print(f"MODEL: {self.state_dict()}\n"
@@ -331,7 +331,7 @@ class ImgConvNet(nn.Module):
                     for optimizer in optimizers:
                         optim_name, lr = self.get_optimizer_data(optimizer)
                         loss_name = self.get_loss_function_name(loss_function)
-                        self.train_p(batch_size=batch_size, epochs=epoch,
+                        self.train_p(batch_size=batch_size, max_epochs=epoch,
                                      loss_function=loss_function, optimizer=optimizer,
                                      model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}",
                                      log_file="../doc/optimizer.log", verbose=True)
