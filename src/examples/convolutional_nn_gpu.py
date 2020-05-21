@@ -17,7 +17,7 @@ REBUILD_DATA = False
 
 
 class DogsVSCats():
-    DATA_BASE_DIR = Path("../data")
+    DATA_BASE_DIR = Path("../../data")
     IMG_SIZE = 50
     CATS = DATA_BASE_DIR / "cats_dogs/PetImages/Cat"
     DOGS = DATA_BASE_DIR / "cats_dogs/PetImages/Dog"

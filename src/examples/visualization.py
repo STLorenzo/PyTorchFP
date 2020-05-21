@@ -8,7 +8,7 @@ model_name = "2020-05-20 13:04:05.354545"
 
 
 def create_acc_loss_graph(model_name):
-    model_path = Path(f"../doc/{model_name}.log")
+    model_path = Path(f"../../doc/{model_name}.log")
     contents = open(model_path, "r").read().split('\n')
 
     times = []
