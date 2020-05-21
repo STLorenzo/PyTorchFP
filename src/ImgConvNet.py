@@ -30,7 +30,9 @@ class ImgConvNet(nn.Module):
         self.half_trained_model_path = Path("../data/created_data")
         self.loss_dict = {'MSELoss': nn.MSELoss}
 
-        signal.signal(signal.SIGINT, self.catch_sigint)
+        signal.signal(signal.SIGINT, self.catch_abrupt_end)
+        signal.signal(signal.SIGTERM, self.catch_abrupt_end)
+        # signal.signal(signal, self.catch_abrupt_end)
 
         # Conv2d(in_channels = 1, out_channels=32, kernel(window) = 5)
         # By default stride = 1, padding = 0
@@ -179,8 +181,7 @@ class ImgConvNet(nn.Module):
                                            log_file, model_name)
 
                     sys.exit(0)
-                if verbose:
-                    print(f"Epoch: {epoch}/{max_epochs}")
+                print(f"Epoch: {epoch+1}/{max_epochs}")
                 for i in tqdm(range(0, len(train_X), batch_size)):
                     batch_X = train_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
                                                              self.img_loader.img_size[1]).to(self.device)
@@ -201,7 +202,7 @@ class ImgConvNet(nn.Module):
     def resume_training(self, path):
         epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)
         self.train_p(epoch=epoch, max_epochs=max_epoch, batch_size=batch_size, loss_function=loss_function,
-                     optimizer=self.optimizer, log_file=model_name, model_name=model_name, verbose=True)
+                     optimizer=self.optimizer, log_file=log_file, model_name=model_name, verbose=True)
 
     def test_p(self, test_X=None, test_y=None, loss_function=None, optimizer=None, size=None, verbose=False):
         if test_X is None:
@@ -243,7 +244,7 @@ class ImgConvNet(nn.Module):
 
             except Exception as e:
                 print(e)
-            print(f"{file} could not be loaded")
+                print(f"{file} could not be loaded")
 
     def print_instance(self, epoch, max_epoch, batch_size, optimizer, loss_function):
         print(f"MODEL: {self.state_dict()}\n"
@@ -285,7 +286,7 @@ class ImgConvNet(nn.Module):
     def load_net(self, path):
         self.load_state_dict(torch.load(path))
 
-    def catch_sigint(self, signum, frame):
+    def catch_abrupt_end(self, signum, frame):
         self.STOP_TRAIN = True
 
     @staticmethod
