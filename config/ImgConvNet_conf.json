@@ -1,0 +1,12 @@
+{
+  "dirs": {
+    "created_data_dir": "created_data",
+    "models_dir": "models",
+    "half_trained_models_dir": "half_trained_models",
+    "logs_dir": "logs"
+  },
+  "device": "cpu",
+  "loss_function": "MSELoss",
+  "optimizer": "Adam",
+  "lr": 1e-3
+}

@@ -3,8 +3,8 @@ import time  # Time measuring library
 # Torch Libraries
 import torch
 # Personal Libraries
-import ImageLoader as IL
-import ImgConvNet as ICN
+import src.ImageLoader as IL
+import src.ImgConvNet as ICN
 
 # DATA PREPROCESSING
 VAL_PCT = 0.2
@@ -24,11 +24,11 @@ PREDICT_DIR = DATA_BASE_DIR / "predictions"
 # -------------------------------------Execution------------------------------------
 REBUILD_DATA = False
 
-img_loader = IL.ImageLoader(DATA_BASE_DIR, IMG_DIR, PREDICT_DIR, IMG_SIZE)
+img_loader = IL.ImageLoader()
 if REBUILD_DATA:
     img_loader.make_training_data(val_pct=VAL_PCT)
-
-MODEL_PATH = img_loader.created_data_path / "net_1.pl"
+#
+# MODEL_PATH = img_loader.created_data_path / "net_1.pl"
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 net = ICN.ImgConvNet(img_loader, DEVICE)
@@ -50,4 +50,7 @@ net = ICN.ImgConvNet(img_loader, DEVICE)
 # net2.make_predictions()
 
 # -------------- RESUME TRAINING --------------
-net.resume_training(DATA_BASE_DIR / "created_data/__half__model-1590088618.7491977.pt")
+#
+net.resume_training(DATA_BASE_DIR / "created_data/half_trained_models/__half__model-1590150205.1356344.pt")
+
+net.make_predictions()

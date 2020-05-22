@@ -1,0 +1,17 @@
+{
+  "dirs": {
+    "img_dir": "cats_dogs/PetImages",
+    "predict_dir": "predictions",
+    "created_data_dir": "created_data",
+    "training_test_data_dir": "training_test_data"
+  },
+  "filenames": {
+    "training_data_numpy": "training_data.npy"
+  },
+  "img_sizes": {
+    "img_h": 50,
+    "img_w": 50
+  },
+  "img_norm_value": 255.0,
+  "val_pct": 0.1
+}

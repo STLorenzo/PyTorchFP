@@ -319,7 +319,7 @@ class ImgConvNet(nn.Module):
         return val_acc, val_loss
 
     def make_predictions(self):
-        predict_data_path = self.img_loader.predict_dir
+        predict_data_path = self.img_loader.predict_dir_path
         for file in os.listdir(predict_data_path):
             # try:
             img = self.img_loader.read_image(predict_data_path / file)

@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 # Personal Libraries
-from general_functions import create_dir
+from src.general_functions import *
 
 
 # TODO: check signal handler
@@ -22,14 +22,41 @@ def siging_handler(sig, frame):
 
 
 class ImgConvNet(nn.Module):
-    def __init__(self, img_loader, device=torch.device('cpu'), optimizer=None, loss_function=None, lr=1e-3):
+    def __init__(self, img_loader, device=None, loss_function=None, optimizer=None, lr=None):
         super().__init__()
+        self.STOP_TRAIN = False
+        self.loss_dict = {'MSELoss': nn.MSELoss}
+        self.optimizer_dict = {'Adam': optim.Adam,
+                               'SGD': optim.SGD}
+
+        self.conf_filename = "/config/ImgConvNet_conf.json"
+        self.p_conf_data = read_conf("/config/Project_conf.json")
+        self.l_conf_data = read_conf(self.conf_filename)
+
+        # ------------------- VARIABLE ASSIGMENT -------------------
         self.img_loader = img_loader
         self.lr = lr
-        self.STOP_TRAIN = False
-        self.half_trained_model_path = Path("../data/created_data")
-        self.loss_dict = {'MSELoss': nn.MSELoss}
+        self.device = device
+        self.loss_function = loss_function
 
+        self.base_path = Path(self.p_conf_data['base_path'])
+        self.data_base_path = self.base_path / self.p_conf_data['dirs']['data_dir']
+        self.created_data_path = self.data_base_path / self.l_conf_data['dirs']['created_data_dir']
+        self.models_path = self.created_data_path / self.l_conf_data['dirs']['models_dir']
+        self.half_trained_model_path = self.created_data_path / self.l_conf_data['dirs']['half_trained_models_dir']
+        self.logs_path = self.base_path / self.p_conf_data['dirs']['doc_dir'] / self.l_conf_data['dirs']['logs_dir']
+
+        create_dir(self.created_data_path)
+        create_dir(self.models_path)
+        create_dir(self.half_trained_model_path)
+        create_dir(self.logs_path)
+
+        if self.lr is None:
+            self.lr = self.l_conf_data['lr']
+        if self.device is None:
+            self.device = torch.device(self.l_conf_data['device'])
+
+        # ------------------- SIGNAL HANDLERS -------------------
         signal.signal(signal.SIGINT, self.catch_abrupt_end)
         signal.signal(signal.SIGTERM, self.catch_abrupt_end)
         # signal.signal(signal, self.catch_abrupt_end)
@@ -38,6 +65,7 @@ class ImgConvNet(nn.Module):
         # By default stride = 1, padding = 0
         # if kernel is a single int it creates a (5, 5) convolving kernel
 
+        # ------------------- NET ARCHITECTURE -------------------
         self.conv1 = nn.Conv2d(1, 32, 5)
         self.conv2 = nn.Conv2d(32, 64, 5)
         self.conv3 = nn.Conv2d(64, 128, 5)
@@ -50,17 +78,18 @@ class ImgConvNet(nn.Module):
         self.fc1 = nn.Linear(self._flatten_dim, 512)
         self.fc2 = nn.Linear(512, 2)
 
-        # NET COMPILE
-        self.device = device
-        self.to(device)
-        if optimizer is None:
-            self.optimizer = optim.Adam(self.parameters(), self.lr)
-        else:
-            self.optimizer = optimizer
+        # ------------------- NET COMPILE -------------------
+
         if loss_function is None:
-            self.loss_function = nn.MSELoss()
+            loss_function_constructor = self.get_loss_function_by_name(self.l_conf_data['loss_function'])
+            self.loss_function = loss_function_constructor()
+        if optimizer is None:
+            optimizer_constructor = self.get_optimizer_by_name(self.l_conf_data['optimizer'])
         else:
-            self.loss_function = loss_function
+            optimizer_constructor = self.get_optimizer_by_name(optimizer)
+        self.optimizer = optimizer_constructor(self.parameters(), self.lr)
+
+        self.to(device)
         print(f"Net will run in {self.device}")
 
     def convs(self, x, verbose=False):
@@ -142,7 +171,8 @@ class ImgConvNet(nn.Module):
             optimizer.step()
         return acc, loss
 
-    def train_p(self, train_X=None, train_y=None, batch_size=100, epoch=0, max_epochs=10, log_file=None, loss_function=None,
+    def train_p(self, train_X=None, train_y=None, batch_size=100, epoch=0, max_epochs=10, log_file=None,
+                loss_function=None,
                 optimizer=None, model_name=f"model-{time.time()}", n_steps_log=50, verbose=False):
 
         if train_X is None:
@@ -155,8 +185,9 @@ class ImgConvNet(nn.Module):
         # test_y = img_loader.read_test_y()
 
         if log_file is None:
-            create_dir("../doc")
-            log_file = os.path.join(f"../doc/{datetime.datetime.now().strftime('%Y-%m-%d_%H_%M')}.log")
+            log_file = f"{datetime.datetime.now().strftime('%Y-%m-%d_%H_%M')}.log"
+
+        log_file_path = self.logs_path / log_file
 
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
@@ -169,19 +200,19 @@ class ImgConvNet(nn.Module):
             print(f"Starting Training of {model_name},{max_epochs},"
                   f"{loss_function_name},{optimizer_name},{lr},{batch_size}")
         t0 = time.time()
-        with open(log_file, "a") as f:
+        with open(log_file_path, "a") as f:
             for epoch in range(epoch, max_epochs):
                 # TODO: check stop train
                 if self.STOP_TRAIN:
                     if verbose:
                         print("Stopping Training")
-                    self.print_instance(epoch, max_epochs, batch_size, optimizer, loss_function)
+                    # self.print_instance(epoch, max_epochs, batch_size, optimizer, loss_function)
                     self.save_instance_net(self.half_trained_model_path / f"__half__{model_name}.pt",
                                            epoch, max_epochs, batch_size, optimizer, loss_function,
                                            log_file, model_name)
 
                     sys.exit(0)
-                print(f"Epoch: {epoch+1}/{max_epochs}")
+                print(f"Epoch: {epoch + 1}/{max_epochs}")
                 for i in tqdm(range(0, len(train_X), batch_size)):
                     batch_X = train_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
                                                              self.img_loader.img_size[1]).to(self.device)
@@ -201,6 +232,7 @@ class ImgConvNet(nn.Module):
 
     def resume_training(self, path):
         epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)
+        print(loss_function)
         self.train_p(epoch=epoch, max_epochs=max_epoch, batch_size=batch_size, loss_function=loss_function,
                      optimizer=self.optimizer, log_file=log_file, model_name=model_name, verbose=True)
 
@@ -231,7 +263,7 @@ class ImgConvNet(nn.Module):
         return val_acc, val_loss
 
     def make_predictions(self):
-        predict_data_path = self.img_loader.predict_dir
+        predict_data_path = self.img_loader.predict_dir_path
         for file in os.listdir(predict_data_path):
             try:
                 img = self.img_loader.read_image(predict_data_path / file)
@@ -274,7 +306,7 @@ class ImgConvNet(nn.Module):
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
         max_epoch = checkpoint['max_epoch']
-        loss_function = self.get_loss_function_by_name(checkpoint['loss'])
+        loss_function = self.get_loss_function_by_name(checkpoint['loss'])()
         batch_size = checkpoint['batch_size']
         log_file = checkpoint['log_file']
         model_name = checkpoint['model_name']
@@ -302,10 +334,17 @@ class ImgConvNet(nn.Module):
 
     def get_loss_function_by_name(self, loss):
         if loss in self.loss_dict.keys():
-            return self.loss_dict[loss]()
+            return self.loss_dict[loss]
         else:
             raise Exception(f"Loss name not doesn't match available functions\n"
                             f"{loss} - {self.loss_dict}")
+
+    def get_optimizer_by_name(self, optimizer_name):
+        if optimizer_name in self.optimizer_dict.keys():
+            return self.optimizer_dict[optimizer_name]
+        else:
+            raise Exception(f"Optimizer name not doesn't match available optimizers\n"
+                            f"{optimizer_name} - {self.optimizer_dict}")
 
     def optimize(self, loss_functions=None, optimizers=None, batch_sizes=None, lrs=None, epochs=None):
         if lrs is None:
