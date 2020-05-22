@@ -71,7 +71,7 @@ class ImageLoader:
         self.training_data = []
         self.counts = {label: 0 for label in self.classes}
         for label in self.labels:
-            print(label)
+            print(f"Reading {label} images...")
             errors = 0
             for file in tqdm(os.listdir(self.img_dir_path / label)):
                 try:

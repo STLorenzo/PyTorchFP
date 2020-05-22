@@ -259,7 +259,7 @@ class ImgConvNet(nn.Module):
         # test_y = img_loader.read_test_y()
 
         if log_file is None:
-            create_dir("../doc")
+            create_dir("../../doc")
             log_file = Path(f"../doc/{datetime.datetime.now()}.log")
 
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
@@ -377,7 +377,7 @@ class ImgConvNet(nn.Module):
                         self.train_p(batch_size=batch_size, epochs=epoch,
                                      loss_function=loss_function, optimizer=optimizer,
                                      model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}",
-                                     log_file="../doc/optimizer.log", verbose=True)
+                                     log_file="../../doc/optimizer.log", verbose=True)
                         i += 1
 
         print(f"Trained: {i} Different models")

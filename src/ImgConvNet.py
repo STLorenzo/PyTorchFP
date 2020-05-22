@@ -44,7 +44,7 @@ class ImgConvNet(nn.Module):
         self.created_data_path = self.data_base_path / self.l_conf_data['dirs']['created_data_dir']
         self.models_path = self.created_data_path / self.l_conf_data['dirs']['models_dir']
         self.half_trained_model_path = self.created_data_path / self.l_conf_data['dirs']['half_trained_models_dir']
-        self.logs_path = self.base_path / self.p_conf_data['dirs']['doc_dir'] / self.l_conf_data['dirs']['logs_dir']
+        self.logs_path = self.created_data_path / self.l_conf_data['dirs']['logs_dir']
 
         create_dir(self.created_data_path)
         create_dir(self.models_path)
@@ -59,7 +59,7 @@ class ImgConvNet(nn.Module):
         # ------------------- SIGNAL HANDLERS -------------------
         signal.signal(signal.SIGINT, self.catch_abrupt_end)
         signal.signal(signal.SIGTERM, self.catch_abrupt_end)
-        # signal.signal(signal, self.catch_abrupt_end)
+        # signal.signal(signal.SIGKILL, self.catch_abrupt_end)
 
         # Conv2d(in_channels = 1, out_channels=32, kernel(window) = 5)
         # By default stride = 1, padding = 0
@@ -226,6 +226,13 @@ class ImgConvNet(nn.Module):
                                 f"{round(float(acc), 2)},{round(float(loss), 4)},"
                                 f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
+            # Final test once training has finished
+            val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
+            f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
+                    f"{loss_function_name},{optimizer_name},{lr},{batch_size},"
+                    f"{round(float(acc), 2)},{round(float(loss), 4)},"
+                    f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
+
         t1 = time.time() - t0
         if verbose:
             print(f"Training Finished in {t1} seconds")
@@ -312,10 +319,14 @@ class ImgConvNet(nn.Module):
         model_name = checkpoint['model_name']
         return epoch, max_epoch, loss_function, batch_size, log_file, model_name
 
-    def save_net(self, path):
+    def save_net(self, path=None):
+        if path is None:
+            path = self.models_path / "net1.pt"
         torch.save(self.state_dict(), path)
 
-    def load_net(self, path):
+    def load_net(self, path=None):
+        if path is None:
+            path = self.models_path / "net1.pt"
         self.load_state_dict(torch.load(path))
 
     def catch_abrupt_end(self, signum, frame):
