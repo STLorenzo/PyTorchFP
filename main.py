@@ -42,7 +42,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # print("Loss: ", val_loss)
 
 # -------- PREDICTIONS ---------------
-# net.make_predictions()K
+# net.make_predictions()
 
 # -------- SAVE/LOAD ------------------
 
