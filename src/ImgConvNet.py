@@ -39,6 +39,8 @@ class ImgConvNet(nn.Module):
         self.device = device
         self.loss_function = loss_function
 
+        self.MAX_VAL_TRAIN_PCT = 0.5
+
         self.base_path = Path(self.p_conf_data['base_path'])
         self.data_base_path = self.base_path / self.p_conf_data['dirs']['data_dir']
         self.created_data_path = self.data_base_path / self.l_conf_data['dirs']['created_data_dir']
@@ -172,37 +174,64 @@ class ImgConvNet(nn.Module):
         return acc, loss
 
     def train_p(self, train_X=None, train_y=None, batch_size=100, epoch=0, max_epochs=10, log_file=None,
-                loss_function=None,
+                loss_function=None, val_train_pct=0,
                 optimizer=None, model_name=f"model-{time.time()}", n_steps_log=50, verbose=False):
 
+        # Input check
+        if val_train_pct > self.MAX_VAL_TRAIN_PCT or val_train_pct < 0:
+            raise Exception(f"train_p error: val_train_pct higher than max({self.MAX_VAL_TRAIN_PCT}) or lower than 0")
+
+        # Load train data if not given
         if train_X is None:
             train_X = self.img_loader.read_train_X()
         if train_y is None:
             train_y = self.img_loader.read_train_y()
 
-        # TODO: CHECK TESTING
-        # test_X = img_loader.read_test_X()
-        # test_y = img_loader.read_test_y()
+        test_X = None
+        test_y = None
 
+        print(f"Train X shape: {train_X.size()}")
+        print(f"Train y shape: {train_y.size()}")
+
+        # if valid validation percentage given separate the corresponding training data for validation
+        if val_train_pct > 0:
+            pct_index = int(val_train_pct * len(train_X))
+            point = np.random.randint(len(train_X) - pct_index)
+            test_X = train_X[point:point+pct_index]
+            test_y = train_y[point:point+pct_index]
+            train_X = torch.cat((train_X[:point], train_X[point+pct_index:]), 0)
+            train_y = torch.cat((train_y[:point], train_y[point+pct_index:]), 0)
+            print(f"Train X shape: {train_X.size()}")
+            print(f"Train y shape: {train_y.size()}")
+            print(f"Test X shape: {test_X.size()}")
+            print(f"Test y shape: {test_y.size()}")
+
+
+
+        # Default log file name with the timestamp of the moment so it doesn't override.
+        # Timestamp given in the form YY-MM-DD_hh_mm to allow filename compatibility with windows
         if log_file is None:
             log_file = f"{datetime.datetime.now().strftime('%Y-%m-%d_%H_%M')}.log"
 
         log_file_path = self.logs_path / log_file
 
+        # If loss_function or optimizer not given use the net default ones
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
         optimizer_name, lr = self.get_optimizer_data(optimizer)
         loss_function_name = self.get_loss_function_name(loss_function)
 
+        # Flag for being able to stop trainning half way and save the instance for future resuming
         self.STOP_TRAIN = False
 
         if verbose:
             print(f"Starting Training of {model_name},{max_epochs},"
                   f"{loss_function_name},{optimizer_name},{lr},{batch_size}")
+
         t0 = time.time()
         with open(log_file_path, "a") as f:
             for epoch in range(epoch, max_epochs):
-                # TODO: check stop train
+                # If flag is active because it received a SIGINT OR SIGTERM save the net instance and exit the program
                 if self.STOP_TRAIN:
                     if verbose:
                         print("Stopping Training")
@@ -212,30 +241,46 @@ class ImgConvNet(nn.Module):
                                            log_file, model_name)
 
                     sys.exit(0)
+
+                # Training procedure
                 print(f"Epoch: {epoch + 1}/{max_epochs}")
                 for i in tqdm(range(0, len(train_X), batch_size)):
+                    # Separate data in batches
                     batch_X = train_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
                                                              self.img_loader.img_size[1]).to(self.device)
                     batch_y = train_y[i:i + batch_size].to(self.device)
-
+                    # Forward the data
                     acc, loss = self.fwd_pass(batch_X, batch_y, loss_function, optimizer, train=True)
+                    # After n amount of steps perform a test to log the training evolution
                     if i % n_steps_log == 0:
-                        val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
-                        f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
-                                f"{loss_function_name},{optimizer_name},{lr},{batch_size},"
-                                f"{round(float(acc), 2)},{round(float(loss), 4)},"
-                                f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
+                        self.train_test(batch_X, batch_y, test_X, test_y, loss_function, optimizer, val_train_pct,
+                                        f, model_name, epoch, loss_function_name, optimizer_name, lr, batch_size, acc,
+                                        loss)
 
             # Final test once training has finished
-            val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
-            f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
-                    f"{loss_function_name},{optimizer_name},{lr},{batch_size},"
-                    f"{round(float(acc), 2)},{round(float(loss), 4)},"
-                    f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
+            self.train_test(batch_X, batch_y, test_X, test_y, loss_function, optimizer, val_train_pct,
+                            f, model_name, epoch, loss_function_name, optimizer_name, lr, batch_size, acc,
+                            loss)
 
         t1 = time.time() - t0
         if verbose:
             print(f"Training Finished in {t1} seconds")
+
+    def train_test(self, batch_X, batch_y, test_X, test_y, loss_function, optimizer, val_train_pct,
+                   f, model_name, epoch, loss_function_name, optimizer_name, lr, batch_size, acc, loss):
+        if val_train_pct > 0:
+            # If the validation_pct is more than 0 means that we have test data and we have
+            # to create batches for it instead of using the default train batches
+            i = np.random.randint(len(test_X)-batch_size)
+            batch_X = test_X[i:i + batch_size].view(-1, 1, self.img_loader.img_size[0],
+                                                     self.img_loader.img_size[1]).to(self.device)
+            batch_y = test_y[i:i + batch_size].to(self.device)
+        val_acc, val_loss = self.test_p(batch_X, batch_y, loss_function, optimizer)
+
+        f.write(f"{model_name},{epoch},{round(time.time(), 3)},"
+                f"{loss_function_name},{optimizer_name},{lr},{batch_size},"
+                f"{round(float(acc), 2)},{round(float(loss), 4)},"
+                f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
     def resume_training(self, path):
         epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)

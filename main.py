@@ -13,7 +13,7 @@ IMG_SIZE = (100, 100)
 # TRAINING PARAMETERS
 LR = 0.0001
 BATCH_SIZE = 100
-EPOCHS = 5
+EPOCHS = 7
 # DOC NAMES
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
@@ -37,7 +37,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net = ICN.ImgConvNet(img_loader, DEVICE)
 # net.optimize()
 #
-net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, log_file='2020-05-22_20_43.log')
+net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, val_train_pct=0.25)
 val_acc, val_loss = net.test_p(verbose=True)
 print("Accuracy: ", val_acc)
 print("Loss: ", val_loss)
