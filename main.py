@@ -31,26 +31,25 @@ img_loader = IL.ImageLoader()
 if REBUILD_DATA:
     img_loader.make_training_data(val_pct=VAL_PCT)
 #
-MODEL_PATH = img_loader.created_data_path / "net_1.pl"
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='Adagrad')
-
+# net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='AdamW')
 #
-net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
-val_acc, val_loss = net.test_p(verbose=True)
-print("Accuracy: ", val_acc)
-print("Loss: ", val_loss)
+## net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
+# val_acc, val_loss = net.test_p(verbose=True)
+# print("Accuracy: ", val_acc)
+# print("Loss: ", val_loss)
 
 # -------- PREDICTIONS ---------------
-# net.make_predictions()
+# net.make_predictions()K
 
 # -------- SAVE/LOAD ------------------
 
-net.save_net('Adagrad_model.pt')
-# net2 = ICN.ImgConvNet(img_loader, DEVICE)
-# net2.load_net('Adagrad_model.pt')
-# net2.make_predictions()
+# net.save_net('AdamW-model.pt')
+net2 = ICN.ImgConvNet(img_loader, DEVICE)
+net2.load_net('AdamW-model.pt')
+net2.make_predictions()
 
 # -------------- RESUME TRAINING --------------
 #

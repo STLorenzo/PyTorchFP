@@ -25,7 +25,7 @@ class ImgConvNet(nn.Module):
         self.STOP_TRAIN = False
         self.loss_dict = {'MSELoss': nn.MSELoss}
         self.optimizer_dict = {'Adam': optim.Adam,
-                               'Adagrad': optim.Adagrad,
+                               'AdamW': optim.AdamW,
                                'SGD': optim.SGD}
 
         self.conf_filename = "/config/ImgConvNet_conf.json"
@@ -358,15 +358,17 @@ class ImgConvNet(nn.Module):
         model_name = checkpoint['model_name']
         return epoch, max_epoch, loss_function, batch_size, log_file, model_name
 
-    def save_net(self, path=None):
+    def save_net(self, filename=None):
         # TODO: change defaults to conf file
-        if path is None:
-            path = self.models_path / "net1.pt"
+        if filename is None:
+            filename = "net1.pt"
+        path = self.models_path / filename
         torch.save(self.state_dict(), path)
 
-    def load_net(self, path=None):
-        if path is None:
-            path = self.models_path / "net1.pt"
+    def load_net(self, filename=None):
+        if filename is None:
+            filename = "net1.pt"
+        path = self.models_path / filename
         self.load_state_dict(torch.load(path))
 
     def catch_abrupt_end(self, signum, frame):
