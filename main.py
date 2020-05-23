@@ -11,9 +11,9 @@ from src.general_functions import *
 VAL_PCT = 0.2
 IMG_SIZE = (100, 100)
 # TRAINING PARAMETERS
-LR = 0.0001
-BATCH_SIZE = 100
-EPOCHS = 7
+LR = 0.001
+BATCH_SIZE = 32
+EPOCHS = 10
 # DOC NAMES
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
@@ -34,10 +34,10 @@ if REBUILD_DATA:
 MODEL_PATH = img_loader.created_data_path / "net_1.pl"
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-net = ICN.ImgConvNet(img_loader, DEVICE)
-# net.optimize()
+net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='Adagrad')
+
 #
-net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, val_train_pct=0.25)
+net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
 val_acc, val_loss = net.test_p(verbose=True)
 print("Accuracy: ", val_acc)
 print("Loss: ", val_loss)
@@ -47,9 +47,9 @@ print("Loss: ", val_loss)
 
 # -------- SAVE/LOAD ------------------
 
-# net.save_net()
+net.save_net('Adagrad_model.pt')
 # net2 = ICN.ImgConvNet(img_loader, DEVICE)
-# net2.load_net()
+# net2.load_net('Adagrad_model.pt')
 # net2.make_predictions()
 
 # -------------- RESUME TRAINING --------------
@@ -57,3 +57,5 @@ print("Loss: ", val_loss)
 # net.resume_training(DATA_BASE_DIR / "created_data/half_trained_models/__half__model-1590170392.0689793.pt")
 
 # net.make_predictions()
+
+# net.optimize(batch_sizes=[32], lrs=[1e-3], epochs=[10])

@@ -8,5 +8,7 @@
   "device": "cpu",
   "loss_function": "MSELoss",
   "optimizer": "Adam",
-  "lr": 1e-3
+  "lr": 1e-3,
+  "max_val_train_pct": 0.5,
+  "val_train_pct": 0.1
 }

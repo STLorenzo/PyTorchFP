@@ -12,7 +12,7 @@ data_base_path = base_path / p_conf_data['dirs']['data_dir']
 created_data_path = data_base_path / l_conf_data['dirs']['created_data_dir']
 logs_path = created_data_path / l_conf_data['dirs']['logs_dir']
 
-log_file = os.listdir(logs_path)[0]
+log_file = [x for x in os.listdir(logs_path) if 'optim' in x][0]
 print(log_file)
 column_names = ['model', 'epoch', 'time', 'loss_function', 'optimizer', 'lr', 'batch_size',
                 'train_acc', 'train_loss', 'val_acc', 'val_loss']
@@ -39,7 +39,7 @@ for ax, metric in zip(axes, metrics):
         df_model = df[df['model'] == model]
         times = df_model['time']-df_model['time'].min()
         ax.plot(times, df_model[metric], label=model)
-    # ax.legend(loc=2)  # loc = location
+    ax.legend()  # loc = location
 
 plt.show()
 print()
