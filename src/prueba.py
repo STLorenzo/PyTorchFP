@@ -2,6 +2,7 @@ import signal
 import sys
 import numpy as np
 from collections import Counter
+from src.general_functions import read_conf
 
 # def signal_handler(sig, frame):
 #     print('You pressed Ctrl+C!')
@@ -11,8 +12,5 @@ from collections import Counter
 # signal.signal(signal.SIGINT, signal_handler)
 # print('Press Ctrl+C')
 # signal.pause()
-x = []
-for i in range(1000):
- x.append(np.random.randint(0,2))
 
-print(Counter(x))
+pass

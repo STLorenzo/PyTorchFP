@@ -13,7 +13,7 @@ IMG_SIZE = (100, 100)
 # TRAINING PARAMETERS
 LR = 0.001
 BATCH_SIZE = 32
-EPOCHS = 10
+EPOCHS = 2
 # DOC NAMES
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
@@ -30,13 +30,14 @@ REBUILD_DATA = False
 img_loader = IL.ImageLoader()
 if REBUILD_DATA:
     img_loader.make_training_data(val_pct=VAL_PCT)
-#
+
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='AdamW')
+net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='AdamW')
+
 #
-## net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
+# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
 # val_acc, val_loss = net.test_p(verbose=True)
 # print("Accuracy: ", val_acc)
 # print("Loss: ", val_loss)
@@ -46,10 +47,10 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # -------- SAVE/LOAD ------------------
 
-# net.save_net('AdamW-model.pt')
-net2 = ICN.ImgConvNet(img_loader, DEVICE)
-net2.load_net('AdamW-model.pt')
-net2.make_predictions()
+# # net.save_net()
+# net2 = ICN.ImgConvNet(img_loader, DEVICE)
+# net2.load_net()
+# net2.make_predictions()
 
 # -------------- RESUME TRAINING --------------
 #
@@ -57,4 +58,4 @@ net2.make_predictions()
 
 # net.make_predictions()
 
-# net.optimize(batch_sizes=[32], lrs=[1e-3], epochs=[10])
+net.optimize(batch_sizes=[32], lrs=[1e-3], epochs=[5])

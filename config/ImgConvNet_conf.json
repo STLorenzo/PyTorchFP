@@ -5,10 +5,18 @@
     "half_trained_models_dir": "half_trained_models",
     "logs_dir": "logs"
   },
+  "optimizer_defaults": {
+    "lrs": [1e-3, 5e-3, 1e-2, 1e-4],
+    "batch_sizes": [8, 16, 32, 128],
+    "epochs": [10, 20, 30],
+    "loss_functions": ["MSELoss"],
+    "optimizers": ["Adam", "AdamW", "SGD"]
+  },
   "device": "cpu",
   "loss_function": "MSELoss",
   "optimizer": "Adam",
   "lr": 1e-3,
   "max_val_train_pct": 0.5,
-  "val_train_pct": 0.1
+  "val_train_pct": 0.1,
+  "net_save_default_name": "net1.pt"
 }

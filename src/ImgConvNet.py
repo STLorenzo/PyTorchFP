@@ -13,12 +13,6 @@ import torch.optim as optim
 from src.general_functions import *
 
 
-# TODO: check signal handler
-def siging_handler(sig, frame):
-    print("Sigint received: Saving instance of training...")
-    sys.exit(0)
-
-
 class ImgConvNet(nn.Module):
     def __init__(self, img_loader, device=None, loss_function=None, optimizer=None, lr=None):
         super().__init__()
@@ -93,7 +87,6 @@ class ImgConvNet(nn.Module):
 
         self.to(device)
         print(f"Net will run in {self.device}")
-
 
     def convs(self, x, verbose=False):
         # It scales down the data
@@ -332,7 +325,6 @@ class ImgConvNet(nn.Module):
               f"Batch_size: {batch_size}\n"
               f"Loss: {self.get_loss_function_name(loss_function)}\n")
 
-    # TODO: CHECK SAVE LOAD (in particular loss function)
     def save_instance_net(self, path, epoch, max_epoch, batch_size, optimizer, loss_function,
                           log_file, model_name):
         torch.save({
@@ -359,15 +351,14 @@ class ImgConvNet(nn.Module):
         return epoch, max_epoch, loss_function, batch_size, log_file, model_name
 
     def save_net(self, filename=None):
-        # TODO: change defaults to conf file
         if filename is None:
-            filename = "net1.pt"
+            filename = self.l_conf_data['net_save_default_name']
         path = self.models_path / filename
         torch.save(self.state_dict(), path)
 
     def load_net(self, filename=None):
         if filename is None:
-            filename = "net1.pt"
+            filename = self.l_conf_data['net_save_default_name']
         path = self.models_path / filename
         self.load_state_dict(torch.load(path))
 
@@ -399,26 +390,29 @@ class ImgConvNet(nn.Module):
             raise Exception(f"Optimizer name not doesn't match available optimizers\n"
                             f"{optimizer_name} - {self.optimizer_dict.keys()}")
 
-    def optimize(self, loss_functions=None, optimizers=None, batch_sizes=None, lrs=None, epochs=None, log_file=None):
+    def optimize(self, loss_functions=None, optimizers_constructors=None, batch_sizes=None, lrs=None, epochs=None,
+                 log_file=None):
         if log_file is None:
             log_file = f"optimizer_{datetime.datetime.now().strftime('%Y-%m-%d')}.log"
-        # TODO: change defaults to conf file
+
         if lrs is None:
-            lrs = [1e-3, 5e-3, 1e-2, 1e-4]
+            lrs = self.l_conf_data['optimizer_defaults']['lrs']
         if batch_sizes is None:
-            batch_sizes = [8, 16, 32, 128]
+            batch_sizes = self.l_conf_data['optimizer_defaults']['batch_sizes']
         if epochs is None:
-            epochs = [10, 30, 50]
-
+            epochs = self.l_conf_data['optimizer_defaults']['epochs']
         if loss_functions is None:
-            loss_functions = [nn.MSELoss()]
+            loss_functions = self.l_conf_data['optimizer_defaults']['loss_functions']
+            loss_functions = [self.loss_dict[x]() for x in loss_functions]
 
-        if optimizers is None:
-            optimizers = []
-            optimizers_constructors = [optim.Adam, optim.Adagrad, optim.SGD]
-            for lr in lrs:
-                for constructor in optimizers_constructors:
-                    optimizers.append(constructor(self.parameters(), lr))
+        if optimizers_constructors is None:
+            optimizers_constructors = self.l_conf_data['optimizer_defaults']['optimizers']
+            optimizers_constructors = [self.optimizer_dict[x] for x in optimizers_constructors]
+
+        optimizers = []
+        for lr in lrs:
+            for constructor in optimizers_constructors:
+                optimizers.append(constructor(self.parameters(), lr))
 
         i = 0
         for epoch in epochs:

@@ -29,7 +29,6 @@ def create_dir(dir_name, debug=False):
 class ImageLoader():
 
     def __init__(self, data_base_dir, img_dir, predict_dir, img_size=(50, 50), img_norm_value=255.0):
-        # TODO: Check inputs
         self.data_base_dir = Path(data_base_dir)
         self.img_dir = Path(img_dir)
         self.img_size = img_size
@@ -253,10 +252,6 @@ class ImgConvNet(nn.Module):
             train_X = img_loader.read_train_X()
         if train_y is None:
             train_y = img_loader.read_train_y()
-
-        # TODO: CHECK TESTING
-        # test_X = img_loader.read_test_X()
-        # test_y = img_loader.read_test_y()
 
         if log_file is None:
             create_dir("../../doc")

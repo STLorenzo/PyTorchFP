@@ -10,7 +10,6 @@ from src.general_functions import *
 
 class ImageLoader:
     def __init__(self, img_dir_path=None, predict_dir_path=None, img_size=None, img_norm_value=None):
-        # TODO: Check inputs
 
         self.conf_filename = "/config/ImageLoader_conf.json"
 
@@ -22,7 +21,6 @@ class ImageLoader:
         self.img_size = img_size
         self.img_norm_value = img_norm_value
 
-        # TODO: CHECK STRUCTURE OF JSON FILES
         self.base_path = Path(p_conf_data['base_path'])
         self.data_base_path = self.base_path / p_conf_data['dirs']['data_dir']
         self.created_data_path = self.data_base_path / l_conf_data['dirs']['created_data_dir']
