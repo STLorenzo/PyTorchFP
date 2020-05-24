@@ -14,7 +14,7 @@ from src.general_functions import *
 
 
 class ImgConvNet(nn.Module):
-    def __init__(self, img_loader, device=None, loss_function=None, optimizer=None, lr=None):
+    def __init__(self, img_loader, device=None, loss_function_name=None, optimizer_name=None, lr=None):
         super().__init__()
         self.STOP_TRAIN = False
         self.loss_dict = {'MSELoss': nn.MSELoss}
@@ -30,7 +30,6 @@ class ImgConvNet(nn.Module):
         self.img_loader = img_loader
         self.lr = lr
         self.device = device
-        self.loss_function = loss_function
 
         self.MAX_VAL_TRAIN_PCT = self.l_conf_data['max_val_train_pct']
         self.val_train_pct = self.l_conf_data['val_train_pct']
@@ -76,13 +75,13 @@ class ImgConvNet(nn.Module):
 
         # ------------------- NET COMPILE -------------------
         # TODO: NET COMPILE
-        if loss_function is None:
-            loss_function_constructor = self.get_loss_function_by_name(self.l_conf_data['loss_function'])
-            self.loss_function = loss_function_constructor()
-        if optimizer is None:
-            optimizer_constructor = self.get_optimizer_by_name(self.l_conf_data['optimizer'])
-        else:
-            optimizer_constructor = self.get_optimizer_by_name(optimizer)
+        if loss_function_name is None:
+            loss_function_name = self.l_conf_data['loss_function']
+        loss_function_constructor = self.get_loss_function_by_name(loss_function_name)
+        self.loss_function = loss_function_constructor()
+        if optimizer_name is None:
+            optimizer_name = self.l_conf_data['optimizer']
+        optimizer_constructor = self.get_optimizer_by_name(optimizer_name)
         self.optimizer = optimizer_constructor(self.parameters(), self.lr)
 
         self.to(device)
@@ -390,41 +389,39 @@ class ImgConvNet(nn.Module):
             raise Exception(f"Optimizer name not doesn't match available optimizers\n"
                             f"{optimizer_name} - {self.optimizer_dict.keys()}")
 
-    def optimize(self, loss_functions=None, optimizers_constructors=None, batch_sizes=None, lrs=None, epochs=None,
-                 log_file=None):
-        if log_file is None:
-            log_file = f"optimizer_{datetime.datetime.now().strftime('%Y-%m-%d')}.log"
 
-        if lrs is None:
-            lrs = self.l_conf_data['optimizer_defaults']['lrs']
-        if batch_sizes is None:
-            batch_sizes = self.l_conf_data['optimizer_defaults']['batch_sizes']
-        if epochs is None:
-            epochs = self.l_conf_data['optimizer_defaults']['epochs']
-        if loss_functions is None:
-            loss_functions = self.l_conf_data['optimizer_defaults']['loss_functions']
-            loss_functions = [self.loss_dict[x]() for x in loss_functions]
+def optimize(device, img_loader, loss_functions_names=None, optimizers_names=None, batch_sizes=None, lrs=None,
+             epochs=None,
+             log_file=None):
+    if log_file is None:
+        log_file = f"optimizer_{datetime.datetime.now().strftime('%Y-%m-%d')}.log"
 
-        if optimizers_constructors is None:
-            optimizers_constructors = self.l_conf_data['optimizer_defaults']['optimizers']
-            optimizers_constructors = [self.optimizer_dict[x] for x in optimizers_constructors]
+    l_conf_data = read_conf('/config/ImgConvNet_conf.json')
+    if lrs is None:
+        lrs = l_conf_data['optimizer_defaults']['lrs']
+    if batch_sizes is None:
+        batch_sizes = l_conf_data['optimizer_defaults']['batch_sizes']
+    if epochs is None:
+        epochs = l_conf_data['optimizer_defaults']['epochs']
+    if loss_functions_names is None:
+        loss_functions_names = l_conf_data['optimizer_defaults']['loss_functions']
+        # loss_functions = [loss_dict[x]() for x in loss_functions]
 
-        optimizers = []
-        for lr in lrs:
-            for constructor in optimizers_constructors:
-                optimizers.append(constructor(self.parameters(), lr))
+    if optimizers_names is None:
+        optimizers_names = l_conf_data['optimizer_defaults']['optimizers']
+        # optimizers_constructors = [optimizer_dict[x] for x in optimizers_constructors]
 
-        i = 0
-        for epoch in epochs:
-            for batch_size in batch_sizes:
-                for loss_function in loss_functions:
-                    for optimizer in optimizers:
-                        optim_name, lr = self.get_optimizer_data(optimizer)
-                        loss_name = self.get_loss_function_name(loss_function)
-                        self.train_p(batch_size=batch_size, max_epochs=epoch,
-                                     loss_function=loss_function, optimizer=optimizer,
-                                     model_name=f"{optim_name}_{lr}_{loss_name}_{epoch}_{batch_size}",
-                                     log_file=log_file, verbose=True)
+    i = 0
+    for epoch in epochs:
+        for batch_size in batch_sizes:
+            for loss_function_name in loss_functions_names:
+                for lr in lrs:
+                    for optimizer_name in optimizers_names:
+                        net = ImgConvNet(device=device, img_loader=img_loader, loss_function_name=loss_function_name,
+                                         optimizer_name=optimizer_name, lr=lr)
+                        net.train_p(batch_size=batch_size, max_epochs=epoch,
+                                    model_name=f"{optimizer_name}_{lr}_{loss_function_name}_{epoch}_{batch_size}",
+                                    log_file=log_file, verbose=True)
                         i += 1
 
-        print(f"Trained: {i} Different models")
+    print(f"Trained: {i} Different models")

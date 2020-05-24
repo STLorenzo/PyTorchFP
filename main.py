@@ -31,12 +31,11 @@ img_loader = IL.ImageLoader()
 if REBUILD_DATA:
     img_loader.make_training_data(val_pct=VAL_PCT)
 
-
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='AdamW')
+net = ICN.ImgConvNet(img_loader, DEVICE)
 
-#
+# ------------ Normal Training and test ----------------
 # net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
 # val_acc, val_loss = net.test_p(verbose=True)
 # print("Accuracy: ", val_acc)
@@ -58,4 +57,5 @@ net = ICN.ImgConvNet(img_loader, DEVICE, optimizer='AdamW')
 
 # net.make_predictions()
 
-net.optimize(batch_sizes=[32], lrs=[1e-3], epochs=[5])
+# ------------- OPTIMIZE --------------------
+ICN.optimize(device=DEVICE, img_loader=img_loader, batch_sizes=[64], lrs=[1e-3], epochs=[7])
