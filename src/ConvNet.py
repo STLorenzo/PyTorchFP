@@ -19,7 +19,7 @@ from src.TorchLayer import TorchLayer
 class ConvNet(TorchNet):
     def __init__(self, img_loader, device=None, loss_function_name=None, optimizer_name=None, lr=None):
         # Initializes all not given variables to None and the signal handlers
-        super().__init__(img_loader, device, loss_function_name, optimizer_name, lr)
+        super().__init__(img_loader, device, lr)
         # Defined Paths
         self.project_conf_path = '/config/Project_conf.json'
         self.conf_path = "/config/ImgConvNet_conf.json"
@@ -119,7 +119,7 @@ class ConvNet(TorchNet):
         for file in os.listdir(predict_data_path):
             try:
                 img = self.data_loader.read_image(predict_data_path / file)
-                img = torch.Tensor(img).view(self.data_loader.get_image_size()).to(self.device)
+                img = torch.Tensor(img).view(self.data_loader.get_input_size()).to(self.device)
                 img = self.data_loader.normalize_img(img)
                 output = torch.argmax(self(img))
                 output = self.data_loader.classes[output]

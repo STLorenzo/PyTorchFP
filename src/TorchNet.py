@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 
 
 class TorchNet(nn.Module, ABC):
-    def __init__(self, data_loader, device=None, loss_function_name=None, optimizer_name=None, lr=None):
+    def __init__(self, data_loader, device=None, lr=None):
         super().__init__()
         self.STOP_TRAIN = False
         self.loss_dict = None
@@ -53,6 +53,7 @@ class TorchNet(nn.Module, ABC):
         if self.p_conf_data is None or self.l_conf_data is None:
             raise Exception("Conf data not defined")
 
+        # TODO: rename p_conf_data and l_conf_data
         self.base_path = Path(self.p_conf_data['base_path'])
         self.data_base_path = self.base_path / self.p_conf_data['dirs']['data_dir']
         self.created_data_path = self.data_base_path / self.l_conf_data['dirs']['created_data_dir']

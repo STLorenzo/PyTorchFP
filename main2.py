@@ -36,29 +36,29 @@ if REBUILD_DATA:
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # ------------ Normal Training and test ----------------
-net = CN.ConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_function_name=LOSS_FUNCTION_NAME)
-net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, log_file='prueba2.log')
-val_acc, val_loss = net.test_p(verbose=True)
-print("Accuracy: ", val_acc)
-print("Loss: ", val_loss)
+# net = CN.ConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_function_name=LOSS_FUNCTION_NAME)
+# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, log_file='prueba2.log')
+# val_acc, val_loss = net.test_p(verbose=True)
+# print("Accuracy: ", val_acc)
+# print("Loss: ", val_loss)
 
 # -------- PREDICTIONS ---------------
 # net.make_predictions()
 
 # -------- SAVE/LOAD ------------------
 
-# net.save_net()
-# net2 = ICN.ImgConvNet(img_loader, DEVICE)
-# net2.load_net()
-# val_acc, val_loss = net2.test_p(verbose=True)
-# print("Accuracy: ", val_acc)
-# print("Loss: ", val_loss)
+# net.save_net('prueba2.pt')
+net2 = CN.ConvNet(img_loader, DEVICE)
+net2.load_net('prueba2.pt')
+val_acc, val_loss = net2.test_p(verbose=True)
+print("Accuracy: ", val_acc)
+print("Loss: ", val_loss)
 
 # -------------- RESUME TRAINING --------------
 #
 # net.resume_training(DATA_BASE_DIR / "created_data/half_trained_models/__half__model-1590170392.0689793.pt")
 
-# net.make_predictions()
+net2.make_predictions()
 
 # # ------------- OPTIMIZE --------------------
 # ICN.optimize(device=DEVICE, img_loader=img_loader, batch_sizes=[64], epochs=[7], lrs=[1e-3],
