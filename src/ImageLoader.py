@@ -59,7 +59,16 @@ class ImageLoader:
     def normalize_img(self, img):
         return img / self.img_norm_value
 
-    def make_training_data(self, val_pct=None):
+    def one_hot_to_list(self, matrix):
+        values = []
+        for row in matrix:
+            identity = np.eye(len(row))
+            for i, row_i in enumerate(identity):
+                if (row_i == np.array(row)).all():
+                    values.append(i)
+        return values
+
+    def make_data(self, val_pct=None):
         if val_pct is None:
             l_conf_data = read_conf(self.conf_filename)
             val_pct = l_conf_data['val_pct']

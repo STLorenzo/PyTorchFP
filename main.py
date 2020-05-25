@@ -8,12 +8,14 @@ import src.ImgConvNet as ICN
 from src.general_functions import *
 
 # DATA PREPROCESSING
-VAL_PCT = 0.2
+VAL_PCT = 0.1
 IMG_SIZE = (100, 100)
-# TRAINING PARAMETERS
-LR = 0.001
-BATCH_SIZE = 32
-EPOCHS = 2
+# BEST TRAINING PARAMETERS
+LR = 0.001  # checked
+BATCH_SIZE = 64  # checked
+OPTIMIZER_NAME = 'Adam'  # checked
+LOSS_FUNCTION_NAME = 'MSELoss'
+EPOCHS = 10
 # DOC NAMES
 MODEL_NAME = f"model-{int(time.time())}"
 LOG_FILE = Path(f"../doc/{MODEL_NAME}.log")
@@ -25,31 +27,32 @@ IMG_DIR = DATA_BASE_DIR / "cats_dogs/PetImages"
 PREDICT_DIR = DATA_BASE_DIR / "predictions"
 
 # -------------------------------------Execution------------------------------------
-REBUILD_DATA = False
+REBUILD_DATA = True
 
 img_loader = IL.ImageLoader()
 if REBUILD_DATA:
-    img_loader.make_training_data(val_pct=VAL_PCT)
+    img_loader.make_data(val_pct=VAL_PCT)
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-net = ICN.ImgConvNet(img_loader, DEVICE)
-
 # ------------ Normal Training and test ----------------
-# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
-# val_acc, val_loss = net.test_p(verbose=True)
-# print("Accuracy: ", val_acc)
-# print("Loss: ", val_loss)
+net = ICN.ImgConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_function_name=LOSS_FUNCTION_NAME)
+net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, log_file='50_epochs.log')
+val_acc, val_loss = net.test_p(verbose=True)
+print("Accuracy: ", val_acc)
+print("Loss: ", val_loss)
 
 # -------- PREDICTIONS ---------------
 # net.make_predictions()
 
 # -------- SAVE/LOAD ------------------
 
-# # net.save_net()
+# net.save_net()
 # net2 = ICN.ImgConvNet(img_loader, DEVICE)
 # net2.load_net()
-# net2.make_predictions()
+# val_acc, val_loss = net2.test_p(verbose=True)
+# print("Accuracy: ", val_acc)
+# print("Loss: ", val_loss)
 
 # -------------- RESUME TRAINING --------------
 #
@@ -57,5 +60,6 @@ net = ICN.ImgConvNet(img_loader, DEVICE)
 
 # net.make_predictions()
 
-# ------------- OPTIMIZE --------------------
-ICN.optimize(device=DEVICE, img_loader=img_loader, batch_sizes=[64], lrs=[1e-3], epochs=[7])
+# # ------------- OPTIMIZE --------------------
+# ICN.optimize(device=DEVICE, img_loader=img_loader, batch_sizes=[64], epochs=[7], lrs=[1e-3],
+#              optimizers_names=['Adam'], loss_functions_names=['MSELoss', 'CrossEntropyLoss'], log_file="optim_loss.log")

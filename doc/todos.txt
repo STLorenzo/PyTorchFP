@@ -1,0 +1,7 @@
+Separar la net en una general(abstracta) y hacer que las mas concretas hereden de ella
+Lo mismo para el DataLoader
+Mirar como añadir la CrossEntropyLoss y comprobar el buen uso de rmsprop
+Reducir LR durante el entrenamiento
+Dropout layer
+Load net que sea un metodo externo, es decir, que cree la clase y le asigne todos los valores pertinentes
+Habra que modificar el Save net probablemente

@@ -13,10 +13,13 @@
     "optimizers": ["SGD","AdamW","Adam"]
   },
   "device": "cpu",
+  "net_save_default_name": "net1.pt",
   "loss_function": "MSELoss",
   "optimizer": "Adam",
   "lr": 1e-3,
   "max_val_train_pct": 0.5,
   "val_train_pct": 0.1,
-  "net_save_default_name": "net1.pt"
+  "batch_size": 64,
+  "max_epochs": 10,
+  "n_steps_log": 50
 }

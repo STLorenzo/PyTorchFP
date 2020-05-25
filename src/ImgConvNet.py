@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.optim.rmsprop import RMSprop
 # Personal Libraries
 from src.general_functions import *
 
@@ -17,10 +18,12 @@ class ImgConvNet(nn.Module):
     def __init__(self, img_loader, device=None, loss_function_name=None, optimizer_name=None, lr=None):
         super().__init__()
         self.STOP_TRAIN = False
-        self.loss_dict = {'MSELoss': nn.MSELoss}
+        self.loss_dict = {'MSELoss': nn.MSELoss,
+                          'CrossEntropyLoss': nn.CrossEntropyLoss}
         self.optimizer_dict = {'Adam': optim.Adam,
                                'AdamW': optim.AdamW,
-                               'SGD': optim.SGD}
+                               'SGD': optim.SGD,
+                               'rmsprop': RMSprop}
 
         self.conf_filename = "/config/ImgConvNet_conf.json"
         self.p_conf_data = read_conf("/config/Project_conf.json")
@@ -166,9 +169,14 @@ class ImgConvNet(nn.Module):
             optimizer.step()
         return acc, loss
 
-    def train_p(self, train_X=None, train_y=None, batch_size=100, epoch=0, max_epochs=10, log_file=None,
+    # def train_change(self, train_y):
+    #     train_y = self.img_loader.one_hot_to_list(train_y)
+    #     train_y = torch.Tensor(train_y).long()
+    #     return train_y
+
+    def train_p(self, train_X=None, train_y=None, batch_size=None, epoch=0, max_epochs=None, log_file=None,
                 loss_function=None, val_train_pct=None,
-                optimizer=None, model_name=f"model-{time.time()}", n_steps_log=50, verbose=False):
+                optimizer=None, model_name=f"model-{time.time()}", n_steps_log=None, verbose=False):
 
         # Input check
         if val_train_pct is None:
@@ -180,6 +188,7 @@ class ImgConvNet(nn.Module):
         # Load train data if not given
         if train_X is None:
             train_X = self.img_loader.read_train_X()
+
         if train_y is None:
             train_y = self.img_loader.read_train_y()
 
@@ -199,6 +208,13 @@ class ImgConvNet(nn.Module):
         # Timestamp given in the form YY-MM-DD_hh_mm to allow filename compatibility with windows
         if log_file is None:
             log_file = f"{datetime.datetime.now().strftime('%Y-%m-%d_%H_%M')}.log"
+
+        if batch_size is None:
+            batch_size = self.l_conf_data['batch_size']
+        if max_epochs is None:
+            max_epochs = self.l_conf_data['max_epochs']
+        if n_steps_log is None:
+            n_steps_log = self.l_conf_data['n_steps_log']
 
         log_file_path = self.logs_path / log_file
 
