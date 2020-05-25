@@ -25,9 +25,9 @@ class ImgConvNet(nn.Module):
                                'SGD': optim.SGD,
                                'rmsprop': RMSprop}
 
-        self.conf_filename = "/config/ImgConvNet_conf.json"
+        self.conf_path = "/config/ImgConvNet_conf.json"
         self.p_conf_data = read_conf("/config/Project_conf.json")
-        self.l_conf_data = read_conf(self.conf_filename)
+        self.l_conf_data = read_conf(self.conf_path)
 
         # ------------------- VARIABLE ASSIGNMENT -------------------
         self.img_loader = img_loader
@@ -87,7 +87,7 @@ class ImgConvNet(nn.Module):
         optimizer_constructor = self.get_optimizer_by_name(optimizer_name)
         self.optimizer = optimizer_constructor(self.parameters(), self.lr)
 
-        self.to(device)
+        self.to(self.device)
         print(f"Net will run in {self.device}")
 
     def convs(self, x, verbose=False):
@@ -286,7 +286,6 @@ class ImgConvNet(nn.Module):
 
     def resume_training(self, path):
         epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)
-        print(loss_function)
         self.train_p(epoch=epoch, max_epochs=max_epoch, batch_size=batch_size, loss_function=loss_function,
                      optimizer=self.optimizer, log_file=log_file, model_name=model_name, verbose=True)
 

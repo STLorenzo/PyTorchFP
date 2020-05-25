@@ -6,9 +6,10 @@ from pathlib import Path  # Path manipulation
 import torch
 # Personal libraries
 from src.general_functions import *
+from src.DataLoader import DataLoader
 
 
-class ImageLoader:
+class ImageLoader(DataLoader):
     def __init__(self, img_dir_path=None, predict_dir_path=None, img_size=None, img_norm_value=None):
 
         self.conf_filename = "/config/ImageLoader_conf.json"
@@ -114,13 +115,16 @@ class ImageLoader:
         test_X = X[-val_size:]
         test_y = y[-val_size:]
 
+        self.save_Xy(train_X, train_y, test_X, test_y)
+        print("Data saved")
+
+        return train_X, test_X, train_y, test_y
+
+    def save_Xy(self, train_X, train_y, test_X, test_y):
         torch.save(train_X, self.training_data_dir_path / "train_X.pt")
         torch.save(train_y, self.training_data_dir_path / "train_y.pt")
         torch.save(test_X, self.training_data_dir_path / "test_X.pt")
         torch.save(test_y, self.training_data_dir_path / "test_y.pt")
-        print("Data saved")
-
-        return train_X, test_X, train_y, test_y
 
     def read_train_X(self):
         return torch.load(self.training_data_dir_path / "train_X.pt")
@@ -134,12 +138,8 @@ class ImageLoader:
     def read_test_y(self):
         return torch.load(self.training_data_dir_path / "test_y.pt")
 
-    def read_Xy(self):
-        print("Loading train_X, train_y, test_X, test_y...")
-        train_X = self.read_train_X()
-        train_y = self.read_train_y()
-        test_X = self.read_train_X()
-        test_y = self.read_train_y()
-        print("Load successful")
+    def get_input_size(self):
+        return -1, 1, self.img_size[0], self.img_size[1]
 
-        return train_X, test_X, train_y, test_y
+    def get_image_size(self):
+        return self.img_size
