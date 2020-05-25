@@ -317,4 +317,3 @@ class TorchNet(nn.Module, ABC):
         else:
             raise Exception(f"Optimizer name not doesn't match available optimizers\n"
                             f"{optimizer_name} - {self.optimizer_dict.keys()}")
-
