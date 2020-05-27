@@ -10,11 +10,57 @@ from src.DataLoader import DataLoader
 
 
 class ImageLoader(DataLoader):
+    """
+    Class which reads a folder that contains N_class subfolders containing images of that class. Each subfolder has
+    to be named like the class to be predicted. This class preprocesses all the images to be in a suitable input form
+    for a neural net in torch.Tensors datatypes. It also can preprocess a folder that contains images from all the
+    classes for the net to make predictions.
+
+    Attributes
+    ----------
+    conf_filename : str
+        path to the class configuration file
+
+    project_conf_filename : str
+        path to the project configuration file
+
+    self.img_dir_path : Path
+        path to the folder that contains all the subfolders with the images
+    self.predict_dir_path : Path
+        path to the folder that contains the images for prediction
+    self.img_size : (int, int)
+        tuple with the (img_height, img_width) values
+    self.img_norm_value : float
+        images normalization value. (usually 255.0)
+
+    self.base_path : Path
+        path to the root of the project
+    self.data_base_path : Path
+        path to the data folder
+    self.created_data_path : Path
+        path to the folder that will contain the data created by this class
+    self.training_data_dir_path : Path
+        path to the folder that stores the training_test data preprocessed
+    self.training_data_filename : str
+        filename of the file that stores the training_test data
+
+    self.classes : list
+        list with the names of all the classes
+    self.labels : dict
+        dictionary with the name of classes as key and their respective label as value
+    self.training_data : list
+        list to initially store all the training data
+    self.counts : dict
+        dictionary with the name of classes as key and their total amount of samples as value
+
+    """
+
     def __init__(self, img_dir_path=None, predict_dir_path=None, img_size=None, img_norm_value=None):
 
         self.conf_filename = "/config/ImageLoader_conf.json"
+        self.project_conf_filename = "/config/Project_conf.json"
 
-        p_conf_data = read_conf("/config/Project_conf.json")
+        p_conf_data = read_conf(self.project_conf_filename)
         l_conf_data = read_conf(self.conf_filename)
 
         self.img_dir_path = img_dir_path
