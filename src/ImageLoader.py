@@ -56,6 +56,20 @@ class ImageLoader(DataLoader):
     """
 
     def __init__(self, img_dir_path=None, predict_dir_path=None, img_size=None, img_norm_value=None):
+        """
+        Constructor for the class
+
+        Parameters
+        ----------
+        img_dir_path : Path
+            path to the folder containing the subfolders of each class with images
+        predict_dir_path : Path
+            path to the folder with images from all the classes mixed to be predicted
+        img_size : (int, int)
+            size for the image to be resized
+        img_norm_value : float
+            value used for the normalization of the images. Usually 255.0
+        """
 
         self.conf_filename = "/config/ImageLoader_conf.json"
         self.project_conf_filename = "/config/Project_conf.json"
@@ -94,19 +108,66 @@ class ImageLoader(DataLoader):
         self.counts = {label: 0 for label in self.classes}
 
     def read_image(self, path):
+        """
+        Reads an image from the path given and returns a resized version of it
+
+        Parameters
+        ----------
+        path
+            The path to the image to be read
+
+        Returns
+        -------
+        The image resized
+        """
         img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
         return cv2.resize(img, (self.img_size[0], self.img_size[1]))
 
-    def show_image(self, path, output="None"):
+    def show_image(self, path, title="None"):
+        """
+        Shows the image given in a window using the opencv library
+
+        Parameters
+        ----------
+        path : Path
+            path to the image
+        title : str
+            title for the window
+
+        """
         img = cv2.imread(str(path))
-        cv2.imshow(output, img)
+        cv2.imshow(title, img)
         cv2.waitKey(0)
-        cv2.destroyWindow(output)  # cv2 has problem Ubuntu
+        cv2.destroyWindow(title)  # cv2 has problem Ubuntu
 
     def normalize_img(self, img):
+        """
+        Normalized an image establishing all of its values to floats between 0 and 1
+
+        Parameters
+        ----------
+        img
+            image to be normalized
+
+        Returns
+        -------
+            the image normalized
+
+        """
         return img / self.img_norm_value
 
     def one_hot_to_list(self, matrix):
+        """
+        Given a list of one-hot encodings returns a list of int with each corresponding label value
+        Parameters
+        ----------
+        matrix
+            list of one-hot encodings
+
+        Returns
+        -------
+            list of int
+        """
         values = []
         for row in matrix:
             identity = np.eye(len(row))
@@ -116,6 +177,17 @@ class ImageLoader(DataLoader):
         return values
 
     def make_data(self, val_pct=None):
+        """
+        Reads all the input images of each class and assigns their corresponding class label. Transforms each
+        image into a torch Tensor and resizes it to be suitable for input for a neural net. Finally saves the data
+        on disk.
+
+        Parameters
+        ----------
+        val_pct
+            percentage expressed between 0 and 1 of the part of the data to be used as validation data
+
+        """
         if val_pct is None:
             l_conf_data = read_conf(self.conf_filename)
             val_pct = l_conf_data['val_pct']
@@ -146,6 +218,16 @@ class ImageLoader(DataLoader):
         self.prepare_Xy(val_pct)
 
     def prepare_Xy(self, val_pct=0.1):
+        """
+        Internal function that transforms the numpy arrays created by the make-data method into torch Tensors
+        and saves them in disk.
+
+        Parameters
+        ----------
+        val_pct
+            percentage expressed between 0 and 1 of the part of the data to be used as validation data
+
+        """
         print("Creating train_X, train_y, test_X, test_y...")
         training_data = np.load(self.training_data_dir_path / self.training_data_filename, allow_pickle=True)
         X = [i[0] for i in training_data]
@@ -164,9 +246,21 @@ class ImageLoader(DataLoader):
         self.save_Xy(train_X, train_y, test_X, test_y)
         print("Data saved")
 
-        return train_X, test_X, train_y, test_y
-
     def save_Xy(self, train_X, train_y, test_X, test_y):
+        """
+        Saves each tensor in a file
+
+        Parameters
+        ----------
+        train_X : torch.Tensor
+            torch tensor with the input data for training
+        train_y : torch.Tensor
+            torch tensor with the output data for training
+        test_X : torch.Tensor
+            torch tensor with the input data for testing
+        test_y : torch.Tensor
+            torch tensor with the output data for testing
+        """
         torch.save(train_X, self.training_data_dir_path / "train_X.pt")
         torch.save(train_y, self.training_data_dir_path / "train_y.pt")
         torch.save(test_X, self.training_data_dir_path / "test_X.pt")
@@ -185,7 +279,23 @@ class ImageLoader(DataLoader):
         return torch.load(self.training_data_dir_path / "test_y.pt")
 
     def get_input_size(self):
+        """
+        Returns the size (shape) that the tensor has to have for being input to the net
+
+        Returns
+        -------
+        tuple
+            tuple with the tensor shape for the input to the net
+        """
         return -1, 1, self.img_size[0], self.img_size[1]
 
     def get_image_size(self):
+        """
+        Returns the image resize shape
+
+        Returns
+        -------
+        tuple
+            tuple with the image resize shape
+        """
         return self.img_size

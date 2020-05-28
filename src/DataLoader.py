@@ -90,6 +90,7 @@ class DataLoader(ABC):
     @abstractmethod
     def get_input_size(self):
         """
+        Returns the size (shape) that the tensor has to have for being input to the net
 
         Returns
         -------
