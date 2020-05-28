@@ -9,7 +9,6 @@ class DataLoader(ABC):
     ----------
     conf_filename : str
         path to the class configuration file
-
     project_conf_filename : str
         path to the project configuration file
 

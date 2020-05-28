@@ -1,21 +1,36 @@
-import numpy as np  # Vector - Matrix Library
-from tqdm import tqdm  # Progress bar library
-from pathlib import Path  # Path manipulation
-import time  # Time measuring library
-import datetime
-import signal
 # Torch Libraries
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.rmsprop import RMSprop
-# Personal Libraries
-from src.general_functions import *
 
 
 class TorchLayer(nn.Module):
+    """
+    Class that represents a layer of the TorchNet module. Instantiates a given torch.layer constructor
+    and stores the activation functions with their parameters for being applied when the data is being
+    forwarded.
+
+    Attributes
+    ----------
+    constructor : torch Module
+        constructor of the torch layer to be instantiated
+    params_dict : dict
+        dictionary with the parameters for the constructor
+    functions_wp : list
+        list containing tuples in which the first element is the activation function constructor and the
+        second is a dict with the parameters to be passed to the function
+    layer
+        the layer module instantiated
+    """
     def __init__(self, constructor, params_dict):
+        """
+        Constructor for the class
+
+        Parameters
+        ----------
+        constructor : torch Module
+            constructor of the torch layer to be instantiated
+        params_dict : dict
+            dictionary with the parameters for the constructor
+        """
         super().__init__()
         self.constructor = constructor
         self.params_dict = params_dict
@@ -23,14 +38,41 @@ class TorchLayer(nn.Module):
         self.layer = self.construct()
 
     def construct(self):
+        """
+        constructs the layer using the dictionary with its parameters
+        Returns
+        -------
+            the torch module layer instantiated
+        """
         return self.constructor(**self.params_dict)
 
     def add_function_with_parameters(self, constructor, params=None):
+        """
+        Appends an activation function and its dictionary of parameters
+        to the list of them stored by the class
+        Parameters
+        ----------
+        constructor
+            activation function constructor
+        params
+            dictionary of parameters for the activation function
+        """
         if params is None:
             params = {}
         self.functions_wp.append((constructor, params))
 
     def forward_data(self, x):
+        """
+        Given a data input x forwards its data through the player
+        Parameters
+        ----------
+        x : torch Tensor
+            data to be forwarded by the layer
+
+        Returns
+        -------
+            output of the data after being forwarded
+        """
         x = self.layer(x)
         for f_wp in self.functions_wp:
             function = f_wp[0]

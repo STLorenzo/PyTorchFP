@@ -13,6 +13,55 @@ from abc import ABC, abstractmethod
 
 
 class TorchNet(nn.Module, ABC):
+    """
+    Abstract class for implementing a class that represents a torch neural network.
+
+    Attributes
+    ----------
+    STOP_TRAIN : bool
+        Flag for early stopping training and save it's instance so it can be resumed later.
+    loss_dict : dict
+        dictionary with all the loss functions supported by the net
+    optimizer_dict : dict
+        dictionary with all the optimizers supported by the net
+    conf_path : Path
+        path to the class configuration file
+    self.project_conf_path : Path
+        path to the project congifuration file
+    self.p_conf_data : dict
+        dictionary obtained from reading the project configuration file
+    self.l_conf_data : dict
+        dictionary obtained from reading the class configuration file
+    self.data_loader : DataLoader
+        DataLoader class for importing the data to the net
+    self.device :
+        device in which the net is going to run
+    self.lr : float
+        learning rate of the net
+
+    self.optimizer :
+        net optimizer
+    self.loss_function :
+        net loss function
+
+    self.MAX_VAL_TRAIN_PCT :
+        maximum percentage of training data the net can use for validation during training step
+    self.val_train_pct :
+        percentage of training data the net will use for validation during training step
+
+    self.base_path : Path
+        path to the root of the project
+    self.data_base_path : Path
+        path to the data folder
+    self.created_data_path : Path
+        path to the folder that will contain the data created by this class
+    self.models_path : Path
+        path to the folder where the models will be stored
+    self.half_trained_model_path : Path
+        path where the half trained models will be stored
+    self.logs_path : Path
+        path where the log files from the training will be stored
+    """
     def __init__(self, data_loader, device=None, lr=None):
         super().__init__()
         self.STOP_TRAIN = False
@@ -43,6 +92,9 @@ class TorchNet(nn.Module, ABC):
         self.prepare_signal_handlers()
 
     def assign_conf_data(self):
+        """
+        Method that reads the configuration data and asigns its values to the internal variables.
+        """
         if self.project_conf_path is None or self.conf_path is None:
             raise Exception("Filenames not defined")
 
@@ -50,6 +102,9 @@ class TorchNet(nn.Module, ABC):
         self.l_conf_data = read_conf(self.conf_path)
 
     def assign_paths(self):
+        """
+        Method that assigns the paths read from the configuration file to the internal variables
+        """
         if self.p_conf_data is None or self.l_conf_data is None:
             raise Exception("Conf data not defined")
 
@@ -67,25 +122,83 @@ class TorchNet(nn.Module, ABC):
         create_dir(self.logs_path)
 
     def prepare_signal_handlers(self):
+        """
+        Method that prepares signal handlers for half stopping the training
+        """
         signal.signal(signal.SIGINT, self.catch_abrupt_end)
         signal.signal(signal.SIGTERM, self.catch_abrupt_end)
 
     def catch_abrupt_end(self, signum, frame):
+        """
+        function to be executed when the stopping program signals are catch
+
+        Parameters
+        ----------
+        signum
+        frame
+
+        """
         self.STOP_TRAIN = True
 
     @abstractmethod
     def establish_architecture(self):
+        """
+        Method that prepares the net architecture establishing all its layers with their corresponding
+        activation functions
+        """
         pass
 
     @abstractmethod
     def compile_net(self, device, loss_function_name, optimizer_name):
+        """
+        Method tha compiles the net, effectively assigning a loss function, optimizer and device for the net.
+
+        Parameters
+        ----------
+        device :
+            device where the net is going to be executed
+        loss_function_name : str
+            loss function name that has to be in the class loss_function dictionary so its constructor can be used.
+        optimizer_name : str
+            optimizer name that has to be in the class optimizer dictionary so its constructor can be used.
+        """
         pass
 
     @abstractmethod
     def forward(self, x):
+        """
+        Method that forwards x data through the net
+        Parameters
+        ----------
+        x :
+            data for input to the net
+        """
         pass
 
     def fwd_pass(self, X, y, loss_function=None, optimizer=None, train=False):
+        """
+        Method that forwards the data, calculates its error with the loss function and backpropagates it
+        so the net can be optimized with the optimizer
+        Parameters
+        ----------
+        X :
+            features of the dataset
+        y :
+            target of the dataset
+        loss_function :
+            loss_function to be used in this step
+        optimizer :
+            optimizer to be used in this step
+        train : bool
+            boolean value that indicates if we are in a training process so the optimizer step is produced
+
+        Returns
+        -------
+        acc : float
+            accuracy of this step
+        loss : float
+            error of this step
+        """
         loss_function, optimizer = self.check_optim_loss(loss_function, optimizer)
 
         if train:
@@ -103,12 +216,47 @@ class TorchNet(nn.Module, ABC):
     def train_p(self, train_X=None, train_y=None, batch_size=None, epoch=0, max_epochs=None, log_file=None,
                 loss_function=None, val_train_pct=None,
                 optimizer=None, model_name=f"model-{time.time()}", n_steps_log=None, verbose=False):
+        """
+        Method that trains the net.
+        Parameters
+        ----------
+        train_X :
+            features of the training data
+        train_y :
+            target of the training data
+        batch_size :
+            size of the batch for each forward step
+        epoch : int
+            starting epoch
+        max_epochs : int
+            max_spochs
+        log_file : str
+            filename of the file where the logs are going to be written
+        loss_function :
+            loss function to be used
+        val_train_pct :
+            amount of training data to be used for validation and not be trained
+        optimizer :
+            optimizer to be used
+        model_name : str
+            The model name that is being trained
+        n_steps_log : int
+            number of iterations that have happen for the training status to be logged
+        verbose : bool
+            flag to indicate if status messages are printed in strdout
+
+        Returns
+        -------
+
+        """
         # Input check
         if val_train_pct is None:
             val_train_pct = self.val_train_pct
 
         if val_train_pct > self.MAX_VAL_TRAIN_PCT or val_train_pct < 0:
             raise Exception(f"train_p error: val_train_pct higher than max({self.MAX_VAL_TRAIN_PCT}) or lower than 0")
+        if epoch >= max_epochs:
+            raise Exception(f"max_epochs lower than the starting epoch max_epoch: {max_epochs} - epoch: {epoch}")
 
         # Load train data if not given
         if train_X is None:
