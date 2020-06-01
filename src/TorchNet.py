@@ -62,6 +62,7 @@ class TorchNet(nn.Module, ABC):
     self.logs_path : Path
         path where the log files from the training will be stored
     """
+
     def __init__(self, data_loader, device=None, lr=None):
         super().__init__()
         self.STOP_TRAIN = False
@@ -229,24 +230,21 @@ class TorchNet(nn.Module, ABC):
         epoch : int
             starting epoch
         max_epochs : int
-            max_spochs
+            max amount of epochs
         log_file : str
             filename of the file where the logs are going to be written
         loss_function :
             loss function to be used
-        val_train_pct :
+        val_train_pct : float
             amount of training data to be used for validation and not be trained
         optimizer :
             optimizer to be used
         model_name : str
-            The model name that is being trained
+            The name of the model that is being trained
         n_steps_log : int
             number of iterations that have happen for the training status to be logged
         verbose : bool
             flag to indicate if status messages are printed in strdout
-
-        Returns
-        -------
 
         """
         # Input check
@@ -341,12 +339,66 @@ class TorchNet(nn.Module, ABC):
             print(f"Training Finished in {t1} seconds")
 
     def resume_training(self, path):
+        """
+        Resumes a training that was stopped halfway
+
+        Parameters
+        ----------
+        path : Path
+            path to the model instance saved
+
+        """
         epoch, max_epoch, loss_function, batch_size, log_file, model_name = self.load_instance_net(path)
         self.train_p(epoch=epoch, max_epochs=max_epoch, batch_size=batch_size, loss_function=loss_function,
                      optimizer=self.optimizer, log_file=log_file, model_name=model_name, verbose=True)
 
     def train_test(self, batch_X, batch_y, test_X, test_y, loss_function, optimizer, val_train_pct,
                    f, model_name, epoch, loss_function_name, optimizer_name, lr, batch_size, acc, loss):
+        """
+        Methods that performs a test during the training phase.
+
+        Parameters
+        ----------
+        batch_X :
+            batch of features to be tested
+        batch_y :
+            targets of the batch
+        test_X :
+            test feature data
+        test_y :
+            test target data
+        loss_function :
+            loss function to be used
+        val_train_pct : float
+            amount of training data to be used for validation and not be trained
+        optimizer :
+            optimizer to be used
+        f : File
+            opened file where data will be written
+        model_name : str
+            The name of the model that is being trained
+        epoch : int
+            current epoch
+        loss_function_name : str
+            name of the loss_function
+        optimizer_name : str
+            name of the optimizer
+        lr : float
+            learning rate of the model
+        batch_size :
+            size of the batch for each forward step
+        acc : float
+            accuracy of the training step
+        loss : float
+            loss value of the training step
+
+        Returns
+        -------
+        val_acc : float
+            accuracy of the test
+        val_loss : float
+            loss value os the test
+        """
         if val_train_pct > 0:
             # If the validation_pct is more than 0 means that we have test data and we have
             # to create batches for it instead of using the default train batches
@@ -361,6 +413,31 @@ class TorchNet(nn.Module, ABC):
                 f"{round(float(val_acc), 2)},{round(float(val_loss), 4)}\n")
 
     def test_p(self, test_X=None, test_y=None, loss_function=None, optimizer=None, size=None, verbose=False):
+        """
+        Method that performs a test in the data
+
+        Parameters
+        ----------
+        test_X :
+            test feature data
+        test_y :
+            test target data
+        loss_function :
+            loss function to be used
+        optimizer :
+            optimizer to be used
+        size : int
+            size of the test data bath to be tested
+        verbose : bool
+            flag to indicate if status messages are printed in strdout
+
+        Returns
+        -------
+        val_acc : float
+            accuracy of the test
+        val_loss : float
+            loss value os the test
+        """
         if test_X is None:
             test_X = self.data_loader.read_test_X()
         if test_y is None:
@@ -387,6 +464,25 @@ class TorchNet(nn.Module, ABC):
         return val_acc, val_loss
 
     def check_optim_loss(self, loss_function, optimizer):
+        """
+        Checks if the net has been compiled, which means the optimizer and the loss_function
+        has been established
+
+        Parameters
+        ----------
+        loss_function :
+            loss function to be used
+        optimizer :
+            optimizer to be used
+
+        Returns
+        -------
+        loss_function :
+            loss function to be used
+        optimizer :
+            optimizer to be used
+
+        """
         if (optimizer is None and self.optimizer is None) or (loss_function is None and self.loss_function is None):
             raise Exception("Net not compiled")
 
@@ -398,6 +494,22 @@ class TorchNet(nn.Module, ABC):
         return loss_function, optimizer
 
     def print_instance(self, epoch, max_epoch, batch_size, optimizer, loss_function):
+        """
+        prints an instance of the model
+
+        Parameters
+        ----------
+        epoch : int
+            starting epoch
+        max_epoch : int
+            max amount of epochs
+        batch_size :
+            size of the batch for each forward step
+        loss_function :
+            loss function to be used
+        optimizer :
+            optimizer to be used
+        """
         print(f"MODEL: {self.state_dict()}\n"
               f"OPTIMIZER: {optimizer.state_dict()}\n"
               f"Epoch: {epoch}\n"
@@ -407,6 +519,28 @@ class TorchNet(nn.Module, ABC):
 
     def save_instance_net(self, path, epoch, max_epoch, batch_size, optimizer, loss_function,
                           log_file, model_name):
+        """
+        Saves an instance of the net. Usually during training
+
+        Parameters
+        ----------
+        path : Path
+            path to the file where the instance will be stored
+        epoch : int
+            starting epoch
+        max_epoch : int
+            max amount of epochs
+        batch_size :
+            size of the batch for each forward step
+        loss_function :
+            loss function to be used
+        optimizer :
+            optimizer to be used
+        log_file : str
+            name of the log_file to be used
+        model_name : str
+            name of the model
+        """
         torch.save({
             'epoch': epoch,
             'max_epoch': max_epoch,
@@ -419,6 +553,14 @@ class TorchNet(nn.Module, ABC):
         }, path)
 
     def load_instance_net(self, path):
+        """
+        Loads an instance of the net
+
+        Parameters
+        ----------
+        path : Path
+            path to the instance file
+        """
         checkpoint = torch.load(path)
         self.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -431,12 +573,28 @@ class TorchNet(nn.Module, ABC):
         return epoch, max_epoch, loss_function, batch_size, log_file, model_name
 
     def save_net(self, filename=None):
+        """
+        Saves the net
+
+        Parameters
+        ----------
+        filename : str
+            name of the file where the net will be saved
+        """
         if filename is None:
             filename = self.l_conf_data['net_save_default_name']
         path = self.models_path / filename
         torch.save(self.state_dict(), path)
 
     def load_net(self, filename=None):
+        """
+        Loads the net
+
+        Parameters
+        ----------
+        filename : str
+            filename for the net to be loaded
+        """
         if filename is None:
             filename = self.l_conf_data['net_save_default_name']
         path = self.models_path / filename
@@ -444,6 +602,21 @@ class TorchNet(nn.Module, ABC):
 
     @staticmethod
     def get_optimizer_data(optimizer):
+        """
+        Returns the optimizer name and learning rate
+
+        Parameters
+        ----------
+        optimizer :
+            optimizer from which to extract the data
+
+        Returns
+        -------
+        name: str
+            optimizer name
+        lr : float
+            learning rate
+        """
         s = str(optimizer)
         name = s.rsplit(' (')[0]
         lr = s.rsplit('lr: ', 1)[1].rsplit('\n')[0]
@@ -451,9 +624,39 @@ class TorchNet(nn.Module, ABC):
 
     @staticmethod
     def get_loss_function_name(loss_function):
+        """
+        returns loss function name
+
+        Parameters
+        ----------
+        loss_function
+            loss function from which to extract the data
+
+        Returns
+        -------
+        name: str
+            loss function name
+        """
         return str(loss_function)[:-2]
 
     def get_loss_function_by_name(self, loss):
+        """
+        Returns a loss_function if its name is in the net loss_function dictionary
+
+        Parameters
+        ----------
+        loss : str
+            loss_function name
+
+        Returns
+        -------
+        loss_function :
+            the loss function
+
+        Raises
+        ------
+        Exception if the name does not match any key in the dictionary
+        """
         if loss in self.loss_dict.keys():
             return self.loss_dict[loss]
         else:
@@ -461,6 +664,23 @@ class TorchNet(nn.Module, ABC):
                             f"{loss} - {self.loss_dict}")
 
     def get_optimizer_by_name(self, optimizer_name):
+        """
+        Returns an optimizer if its name is in the net optimizer dictionary
+
+        Parameters
+        ----------
+        optimizer_name :str
+            the optimizer name
+
+        Returns
+        -------
+        optimizer:
+            the optimizer
+
+        Raises
+        ------
+            Exception if the name does not match any key in the dictionary
+        """
         if optimizer_name in self.optimizer_dict.keys():
             return self.optimizer_dict[optimizer_name]
         else:
