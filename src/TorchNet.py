@@ -169,6 +169,7 @@ class TorchNet(nn.Module, ABC):
     def forward(self, x):
         """
         Method that forwards x data through the net
+
         Parameters
         ----------
         x :
@@ -180,6 +181,7 @@ class TorchNet(nn.Module, ABC):
         """
         Method that forwards the data, calculates its error with the loss function and backpropagates it
         so the net can be optimized with the optimizer
+
         Parameters
         ----------
         X :
@@ -219,6 +221,7 @@ class TorchNet(nn.Module, ABC):
                 optimizer=None, model_name=f"model-{time.time()}", n_steps_log=None, verbose=False):
         """
         Method that trains the net.
+
         Parameters
         ----------
         train_X :
@@ -517,6 +520,7 @@ class TorchNet(nn.Module, ABC):
               f"Batch_size: {batch_size}\n"
               f"Loss: {self.get_loss_function_name(loss_function)}\n")
 
+    # TODO: CHECK SAVE AND LOAD
     def save_instance_net(self, path, epoch, max_epoch, batch_size, optimizer, loss_function,
                           log_file, model_name):
         """

@@ -7,9 +7,9 @@ class DataLoader(ABC):
 
     Attributes
     ----------
-    conf_filename : str
+    self.conf_filename : str
         path to the class configuration file
-    project_conf_filename : str
+    self.project_conf_filename : str
         path to the project configuration file
 
     """

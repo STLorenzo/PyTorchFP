@@ -40,9 +40,11 @@ class TorchLayer(nn.Module):
     def construct(self):
         """
         constructs the layer using the dictionary with its parameters
+
         Returns
         -------
-            the torch module layer instantiated
+        constructor:
+            the torch layer instantiated
         """
         return self.constructor(**self.params_dict)
 
@@ -50,6 +52,7 @@ class TorchLayer(nn.Module):
         """
         Appends an activation function and its dictionary of parameters
         to the list of them stored by the class
+
         Parameters
         ----------
         constructor
@@ -71,6 +74,7 @@ class TorchLayer(nn.Module):
 
         Returns
         -------
+        x :
             output of the data after being forwarded
         """
         x = self.layer(x)
