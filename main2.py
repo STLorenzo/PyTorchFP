@@ -9,7 +9,7 @@ from src.general_functions import *
 
 # DATA PREPROCESSING
 VAL_PCT = 0.1
-IMG_SIZE = (100, 100)
+IMG_SIZE = (150, 150)
 # BEST TRAINING PARAMETERS
 LR = 0.001  # checked
 BATCH_SIZE = 64  # checked
@@ -36,8 +36,8 @@ if REBUILD_DATA:
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # ------------ Normal Training and test ----------------
-net = CN.ConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_function_name=LOSS_FUNCTION_NAME)
-# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS, log_file='prueba2.log')
+# net = CN.ConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_function_name=LOSS_FUNCTION_NAME)
+# net.train_p(verbose=True, batch_size=BATCH_SIZE, max_epochs=EPOCHS)
 # val_acc, val_loss = net.test_p(verbose=True)
 # print("Accuracy: ", val_acc)
 # print("Loss: ", val_loss)
@@ -48,15 +48,15 @@ net = CN.ConvNet(img_loader, DEVICE, optimizer_name=OPTIMIZER_NAME, lr=LR, loss_
 # -------- SAVE/LOAD ------------------
 
 # net.save_net('prueba2.pt')
-# net2 = CN.ConvNet(img_loader, DEVICE)
-# net2.load_net('prueba2.pt')
-# val_acc, val_loss = net2.test_p(verbose=True)
-# print("Accuracy: ", val_acc)
-# print("Loss: ", val_loss)
+net2 = CN.ConvNet(img_loader, DEVICE)
+net2.load_net('prueba2.pt')
+val_acc, val_loss = net2.test_p(verbose=True)
+print("Accuracy: ", val_acc)
+print("Loss: ", val_loss)
 
 # -------------- RESUME TRAINING --------------
 #
-net.resume_training(DATA_BASE_DIR / "created_data/half_trained_models/__half__model-1590424885.0762944.pt")
+# net.resume_training(DATA_BASE_DIR / "created_data/half_trained_models/__half__model-1590424885.0762944.pt")
 
 # net2.make_predictions()
 
